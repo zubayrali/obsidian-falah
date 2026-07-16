@@ -422,6 +422,15 @@ export class QuranReaderView extends ItemView implements VerseView {
 		if (a.translation) row.createDiv({ cls: "falah-reader-translation", text: a.translation });
 
 		this.renderTafsirBlocks(row, a, reading);
+
+		for (const decorate of this.plugin.ayahRowDecorators) {
+			try {
+				decorate(row, ctx);
+			} catch (e) {
+				console.warn("Falah: ayah-row decorator threw", e);
+			}
+		}
+
 		return row;
 	}
 
