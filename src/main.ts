@@ -50,6 +50,14 @@ import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
 import { FontManager, enumerateSystemFonts } from "./font-loader";
+import {
+	VerseActionRegistry,
+	FALAH_REF,
+	FALAH_API_VERSION,
+	type FalahApi,
+	type AyahRowDecorator,
+	type VerseText,
+} from "./api";
 
 interface FalahSettings {
 	translationEdition: string;
@@ -88,8 +96,43 @@ export default class FalahPlugin extends Plugin {
 	hadithCatalog!: CatalogCache<HadithCatalogEntry>;
 	/** Per-verse menu actions; seeded with the defaults, appendable by future
 	 *  subsystems (audio, journaling) without touching the reader. */
-	verseActions: VerseAction[] = defaultVerseActions();
+	private verseActionRegistry = new VerseActionRegistry(defaultVerseActions());
+	ayahRowDecorators: AyahRowDecorator[] = [];
+	api!: FalahApi;
 	fonts!: FontManager;
+
+	registerVerseAction(action: VerseAction): () => void {
+		return this.verseActionRegistry.register(action);
+	}
+	verseActionList(): VerseAction[] {
+		return this.verseActionRegistry.list();
+	}
+	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void {
+		this.ayahRowDecorators.push(decorator);
+		return () => {
+			const i = this.ayahRowDecorators.indexOf(decorator);
+			if (i >= 0) this.ayahRowDecorators.splice(i, 1);
+		};
+	}
+	async getVerseText(surah: number, ayah: number): Promise<VerseText | undefined> {
+		try {
+			const reading = await this.quranData.getSurahReading(surah, {
+				script: this.settings.arabicScript,
+				translationId: this.settings.translationResourceId || undefined,
+			});
+			const a = reading.ayahs.find((x) => x.ayah === ayah);
+			return a ? { arabic: a.arabic, translation: a.translation } : undefined;
+		} catch {
+			return undefined;
+		}
+	}
+	navigateReaderTo(surah: number, ayah: number): void {
+		void this.openReader().then(() => {
+			const leaf = this.findReaderLeaf();
+			const view = leaf?.view;
+			if (view instanceof QuranReaderView) view.navigateTo(surah, ayah);
+		});
+	}
 
 	async onload(): Promise<void> {
 		const data = ((await this.loadData()) ?? {}) as {
@@ -156,6 +199,14 @@ export default class FalahPlugin extends Plugin {
 		this.addSettingTab(new FalahSettingTab(this));
 
 		this.registerView(VIEW_TYPE_QURAN_READER, (leaf) => new QuranReaderView(leaf, this));
+		this.api = {
+			version: FALAH_API_VERSION,
+			registerVerseAction: (a) => this.registerVerseAction(a),
+			registerAyahRowDecorator: (d) => this.registerAyahRowDecorator(d),
+			getVerseText: (s, a) => this.getVerseText(s, a),
+			navigateReaderTo: (s, a) => this.navigateReaderTo(s, a),
+			ref: FALAH_REF,
+		};
 		this.addRibbonIcon("book-open", "Open Quran reader", () => void this.openReader());
 		this.addCommand({
 			id: "open-quran-reader",

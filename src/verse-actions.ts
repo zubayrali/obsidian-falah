@@ -1,7 +1,7 @@
 // Extensible per-verse action registry. Actions return plain menu-item specs;
 // only the reader turns them into an Obsidian Menu. Pure module — NO "obsidian"
 // import — so it stays vitest-testable. Audio/journaling add actions later by
-// pushing onto plugin.verseActions; nothing here or in the reader changes.
+// calling plugin.registerVerseAction(); nothing here or in the reader changes.
 
 import type FalahPlugin from "./main";
 import type { QuranRef } from "./ref";

@@ -338,7 +338,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 	private async openVerseMenu(ctx: VerseContext, evt: MouseEvent): Promise<void> {
 		const menu = new Menu();
 		let any = false;
-		for (const action of this.plugin.verseActions) {
+		for (const action of this.plugin.verseActionList()) {
 			let items: VerseMenuItem[];
 			try {
 				items = await action.items(ctx);
