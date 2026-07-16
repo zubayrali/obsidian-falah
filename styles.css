@@ -1,8 +1,290 @@
-/*
+/* Reference chips (Live Preview + Reading mode) */
+.falah-chip {
+	cursor: pointer;
+	display: inline-block;
+	padding: 0.05em 0.45em;
+	border-radius: var(--radius-s);
+	font-size: 0.95em;
+	border: 1px solid transparent;
+	white-space: nowrap;
+}
+.falah-chip-quran {
+	color: var(--color-green);
+	background-color: rgba(var(--color-green-rgb), 0.12);
+	border-color: rgba(var(--color-green-rgb), 0.25);
+}
+.falah-chip-hadith {
+	color: var(--color-blue);
+	background-color: rgba(var(--color-blue-rgb), 0.12);
+	border-color: rgba(var(--color-blue-rgb), 0.25);
+}
+.falah-chip:hover {
+	filter: brightness(1.15);
+}
+.falah-chip:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+/* Callouts */
+.callout[data-callout="quran"] {
+	--callout-color: var(--color-green-rgb);
+	--callout-icon: lucide-book-open;
+}
+.callout[data-callout="hadith"] {
+	--callout-color: var(--color-blue-rgb);
+	--callout-icon: lucide-scroll;
+}
 
-If your plugin does not need CSS, delete this file.
+/* Detail modal */
+.falah-detail .falah-arabic {
+	direction: rtl;
+	text-align: right;
+	font-size: 1.6em;
+	line-height: 2.1;
+	margin: 0.6em 0;
+}
+.falah-detail .falah-translation {
+	margin: 0.6em 0;
+}
+.falah-detail .falah-meta {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+.falah-detail .falah-error {
+	color: var(--text-error);
+	margin-bottom: 0.6em;
+}
+.falah-detail .falah-tafsir {
+	margin: 0.6em 0;
+}
+.falah-detail .falah-nav,
+.falah-detail .falah-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+	margin-top: 0.8em;
+}
 
-*/
+/* Suggest entries */
+.falah-suggest-snippet {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+/* Settings: resource download progress (added in Task 10) */
+.falah-download-progress {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 4px;
+}
+
+/* Settings: resource browser */
+.falah-filter-bar {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	align-items: center;
+	margin: 8px 0 12px;
+}
+.falah-filter-bar .falah-search {
+	flex: 1 1 160px;
+	min-width: 120px;
+}
+.falah-resource-list {
+	display: flex;
+	flex-direction: column;
+	max-height: 340px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 0 10px;
+}
+.falah-resource-list .setting-item {
+	border-top: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.falah-resource-list .setting-item:last-child {
+	border-bottom: none;
+}
+.falah-muted {
+	color: var(--text-muted);
+	padding: 8px 2px;
+}
+.falah-download-progress {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	min-height: 1.5em;
+	margin: 8px 0;
+	color: var(--text-muted);
+}
+/* Settings: hadith download UI (Task 13) */
+.falah-hadith-library {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 8px 0 12px;
+}
+.falah-hadith-keyrow {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.falah-hadith-keyrow input {
+	flex: 1 1 240px;
+}
+.falah-hadith-list {
+	display: flex;
+	flex-direction: column;
+	max-height: 340px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 0 10px;
+}
+.falah-hadith-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.falah-hadith-row:last-child {
+	border-bottom: none;
+}
+.falah-hadith-row span {
+	flex: 1 1 auto;
+}
+.falah-hadith-status {
+	min-height: 1.2em;
+}
+.falah-hadith-installed {
+	margin-top: 4px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 8px;
+}
+.falah-advanced {
+	margin-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 8px;
+}
+.falah-advanced > summary {
+	cursor: pointer;
+	font-weight: 600;
+	padding: 4px 0;
+}
+.falah-settings-error {
+	color: var(--text-error);
+}
+
+/* Quran Reader view */
+.falah-reader {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+.falah-reader-toolbar {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	align-items: center;
+	padding: 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	position: sticky;
+	top: 0;
+	background: var(--background-primary);
+	z-index: 1;
+}
+.falah-reader-btn {
+	padding: 2px 8px;
+}
+.falah-reader-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 12px 16px 40px;
+}
+.falah-reader-head {
+	text-align: center;
+	margin: 8px 0 4px;
+}
+.falah-reader-title {
+	font-size: 1.3em;
+	font-weight: 700;
+}
+.falah-reader-subtitle {
+	color: var(--text-muted);
+}
+.falah-reader-bismillah {
+	text-align: center;
+	font-size: 1.4em;
+	margin: 12px 0 20px;
+}
+.falah-reader-ayah {
+	padding: 12px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+}
+.falah-reader-ayah-active {
+	background: var(--text-selection);
+}
+.falah-reader-arabic {
+	line-height: 2;
+	text-align: right;
+}
+.falah-reader-ayah-num {
+	color: var(--text-accent);
+	font-size: 0.7em;
+}
+.falah-reader-translation {
+	margin-top: 6px;
+	color: var(--text-normal);
+}
+.falah-reader-tafsir {
+	margin-top: 8px;
+	color: var(--text-muted);
+}
+.falah-reader-tafsir > summary {
+	cursor: pointer;
+	color: var(--text-accent);
+}
+
+/* Quran Reader — per-verse actions */
+.falah-reader-ayah {
+	position: relative;
+}
+.falah-reader-verse-menu {
+	position: absolute;
+	top: 6px;
+	left: 4px;
+	padding: 0 6px;
+	line-height: 1.2;
+	background: transparent;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	box-shadow: none;
+	opacity: 0;
+	transition: opacity 0.1s ease;
+}
+.falah-reader-ayah:hover .falah-reader-verse-menu,
+.falah-reader-verse-menu:focus {
+	opacity: 1;
+}
+.falah-reader-tafsir > summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.falah-reader-tafsir-remove {
+	padding: 0 4px;
+	background: transparent;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	box-shadow: none;
+}
+.falah-reader-tafsir-remove:hover {
+	color: var(--text-error);
+}
