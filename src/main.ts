@@ -205,6 +205,7 @@ export default class FalahPlugin extends Plugin {
 			registerAyahRowDecorator: (d) => this.registerAyahRowDecorator(d),
 			getVerseText: (s, a) => this.getVerseText(s, a),
 			navigateReaderTo: (s, a) => this.navigateReaderTo(s, a),
+			refreshReader: () => this.refreshReaderRows(),
 			ref: FALAH_REF,
 		};
 		this.addRibbonIcon("book-open", "Open Quran reader", () => void this.openReader());
@@ -307,6 +308,15 @@ export default class FalahPlugin extends Plugin {
 	refreshReader(): void {
 		const leaf = this.findReaderLeaf();
 		if (leaf && leaf.view instanceof QuranReaderView) void leaf.view.refresh();
+	}
+
+	/** Re-render the open reader's ayah rows (re-runs row decorators), e.g. after a
+	 *  companion plugin's own index changes. No-op if no reader is open or it hasn't
+	 *  loaded yet. Distinct from refreshReader() above (toolbar/dropdown refresh) —
+	 *  this only touches row content, not the toolbar. Backs FalahApi.refreshReader. */
+	refreshReaderRows(): void {
+		const leaf = this.findReaderLeaf();
+		if (leaf && leaf.view instanceof QuranReaderView) leaf.view.refreshRows();
 	}
 
 	async openReader(surah = 1, ayah?: number): Promise<void> {

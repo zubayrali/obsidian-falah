@@ -5,7 +5,7 @@ import type { VerseAction, VerseContext } from "./verse-actions";
 import type { IslamicReference, RenderedText, FoundReference } from "./ref";
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
 
-export const FALAH_API_VERSION = 1;
+export const FALAH_API_VERSION = 2;
 
 export type AyahRowDecorator = (row: HTMLElement, ctx: VerseContext) => void;
 export interface VerseText { arabic: string; translation?: string }
@@ -24,6 +24,10 @@ export interface FalahApi {
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void;
 	getVerseText(surah: number, ayah: number): Promise<VerseText | undefined>;
 	navigateReaderTo(surah: number, ayah: number): void;
+	/** Re-render the open Quran reader's ayah rows (re-runs row decorators). No-op if
+	 *  no reader is open. Added in v2 so companion plugins can refresh their row
+	 *  decorations live after their own data changes (e.g. a reflection is saved). */
+	refreshReader(): void;
 	ref: FalahRefApi;
 }
 

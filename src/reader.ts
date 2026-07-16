@@ -118,6 +118,15 @@ export class QuranReaderView extends ItemView implements VerseView {
 		}
 	}
 
+	/** Public: re-render the ayah rows only (toolbar/scroll untouched beyond the
+	 *  existing scroll-to-selected-ayah behavior in renderBody). Used by
+	 *  FalahApi.refreshReader so companion plugins (e.g. Tadabbur) can refresh their
+	 *  row decorations after their own data changes — distinct from refresh(), which
+	 *  rebuilds the toolbar for a locally-changed resource list. */
+	refreshRows(): void {
+		void this.renderBody();
+	}
+
 	/** Public entry point used by plugin.openReader when a reader is already open. */
 	navigateTo(surah: number, ayah?: number): void {
 		this.state.surah = surah;
