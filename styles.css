@@ -288,3 +288,30 @@
 .falah-reader-tafsir-remove:hover {
 	color: var(--text-error);
 }
+
+/* Companion pointer in settings (Tadabbur). Hidden once it's installed. */
+.falah-companion {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	padding: 0.9rem 1rem;
+	background: var(--background-secondary);
+}
+.falah-companion-title {
+	font-weight: 600;
+	margin-bottom: 0.35rem;
+}
+.falah-companion-desc {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	line-height: 1.5;
+}
+.falah-companion-link {
+	display: inline-block;
+	margin-top: 0.6rem;
+	color: var(--text-accent);
+	text-decoration: none;
+	font-weight: 500;
+}
+.falah-companion-link:hover {
+	text-decoration: underline;
+}

@@ -1,11 +1,21 @@
 // Falah's public extension API. Consumed by companion plugins (obsidian-tadabbur)
 // via app.plugins.plugins["falah"].api. This surface is FROZEN — breaking it
 // requires bumping FALAH_API_VERSION and the consumers' minimum.
+import type { App } from "obsidian";
 import type { VerseAction, VerseContext } from "./verse-actions";
 import type { IslamicReference, RenderedText, FoundReference } from "./ref";
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
 
 export const FALAH_API_VERSION = 3;
+
+/** True when `id` is in the user's enabled-plugin set. Unlike reading
+ *  `app.plugins.plugins[id]`, this is load-order independent: `enabledPlugins`
+ *  comes from config and is populated before any plugin's onload runs. Use it to
+ *  answer "is this installed?", not "is its API ready?". */
+export function isPluginEnabled(app: App, id: string): boolean {
+	const plugins = (app as unknown as { plugins?: { enabledPlugins?: Set<string> } }).plugins;
+	return plugins?.enabledPlugins?.has(id) ?? false;
+}
 
 /** Workspace event fired with the FalahApi whenever a Falah instance finishes loading.
  *  Companions must (re)register their API-scoped hooks on every emission — a

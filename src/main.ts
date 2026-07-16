@@ -55,10 +55,15 @@ import {
 	FALAH_REF,
 	FALAH_API_VERSION,
 	FALAH_API_READY_EVENT,
+	isPluginEnabled,
 	type FalahApi,
 	type AyahRowDecorator,
 	type VerseText,
 } from "./api";
+
+/** The Tadabbur companion — reflection/journaling built on Falah's public API. */
+const TADABBUR_PLUGIN_ID = "falah-tadabbur";
+const TADABBUR_URL = "https://github.com/zubayrali/obsidian-tadabbur";
 
 interface FalahSettings {
 	translationEdition: string;
@@ -506,7 +511,33 @@ class FalahSettingTab extends PluginSettingTab {
 
 		this.renderDisplayZone(containerEl, resources);
 		this.renderLibraryZone(containerEl, resources);
+		this.renderCompanionZone(containerEl);
 		this.renderAdvancedZone(containerEl);
+	}
+
+	/** Points at the Tadabbur companion, which builds reflection/journaling on
+	 *  Falah's public API. Stays quiet once it's installed — nobody needs to be
+	 *  sold a plugin they already have. */
+	private renderCompanionZone(containerEl: HTMLElement): void {
+		if (isPluginEnabled(this.app, TADABBUR_PLUGIN_ID)) return;
+
+		containerEl.createEl("h3", { text: "Companion" });
+		const box = containerEl.createDiv({ cls: "falah-companion" });
+		box.createDiv({ cls: "falah-companion-title", text: "Tadabbur — reflection & journaling" });
+		box.createDiv({
+			cls: "falah-companion-desc",
+			text:
+				"Reflect on an ayah straight from the reader and write it to a per-ayah note or your daily note. " +
+				"Falah then shows which of your notes reflect on each verse, and which verses you connect. " +
+				"It's a separate plugin, so Falah stays a reader if that's all you want.",
+		});
+		const link = box.createEl("a", {
+			cls: "falah-companion-link",
+			text: "Get Tadabbur →",
+			href: TADABBUR_URL,
+		});
+		link.setAttr("target", "_blank");
+		link.setAttr("rel", "noopener");
 	}
 
 	private renderDisplayZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
