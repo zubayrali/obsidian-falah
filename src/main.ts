@@ -54,6 +54,7 @@ import {
 	VerseActionRegistry,
 	FALAH_REF,
 	FALAH_API_VERSION,
+	FALAH_API_READY_EVENT,
 	type FalahApi,
 	type AyahRowDecorator,
 	type VerseText,
@@ -208,6 +209,9 @@ export default class FalahPlugin extends Plugin {
 			refreshReader: () => this.refreshReaderRows(),
 			ref: FALAH_REF,
 		};
+		// Announce a fresh API on every load — a disable/re-enable of Falah produces a
+		// NEW api object with empty registries, so companions must know to re-register.
+		this.app.workspace.trigger(FALAH_API_READY_EVENT, this.api);
 		this.addRibbonIcon("book-open", "Open Quran reader", () => void this.openReader());
 		this.addCommand({
 			id: "open-quran-reader",

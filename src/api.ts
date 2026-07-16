@@ -5,7 +5,12 @@ import type { VerseAction, VerseContext } from "./verse-actions";
 import type { IslamicReference, RenderedText, FoundReference } from "./ref";
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
 
-export const FALAH_API_VERSION = 2;
+export const FALAH_API_VERSION = 3;
+
+/** Workspace event fired with the FalahApi whenever a Falah instance finishes loading.
+ *  Companions must (re)register their API-scoped hooks on every emission — a
+ *  disable/re-enable of Falah produces a NEW api object with empty registries. */
+export const FALAH_API_READY_EVENT = "falah:api-ready";
 
 export type AyahRowDecorator = (row: HTMLElement, ctx: VerseContext) => void;
 export interface VerseText { arabic: string; translation?: string }
