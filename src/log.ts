@@ -11,8 +11,12 @@ export type LogLevel = "info" | "warn" | "error";
  *  must abort throws explicitly at its own call site.
  *
  *  `silent` logs without a Notice, for background failures the user needn't see. */
-export function logMessage(message: string, level: LogLevel = "info", opts?: { silent?: boolean }): void {
-	if (!opts?.silent) new Notice(message, level === "error" ? 10000 : undefined);
+export function logMessage(
+	message: string,
+	level: LogLevel = "info",
+	opts?: { silent?: boolean; durationMs?: number }
+): void {
+	if (!opts?.silent) new Notice(message, opts?.durationMs ?? (level === "error" ? 10000 : undefined));
 	const line = `Falah: ${message}`;
 	if (level === "error") console.error(line);
 	else if (level === "warn") console.warn(line);
