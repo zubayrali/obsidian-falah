@@ -22,11 +22,28 @@ export class Plugin {}
 export class PluginSettingTab {}
 export class Modal {}
 export class ItemView {}
-// No type parameters, unlike the real EditorSuggest<T>/SuggestModal<T>: this
-// alias is runtime-only (tsc still resolves the genuine obsidian.d.ts), so a
-// generic here would be erased before it could check anything.
+// No type parameters, unlike the real EditorSuggest<T>: this alias is
+// runtime-only (tsc still resolves the genuine obsidian.d.ts), so a generic
+// here would be erased before it could check anything.
 export class EditorSuggest {}
-export class SuggestModal {}
+// SuggestModal DOES keep its <T>, unlike EditorSuggest above, because
+// selectSuggestion below needs to type the value it forwards.
+//
+// Mirrors Obsidian's real ordering, decompiled from obsidian.asar:
+//   selectSuggestion(e,t){ ...updateModifiers(t), this.close(), this.isOpen=false, this.onChooseSuggestion(e,t) }
+//   close(){ ...detach(), onClose(), ... }   // synchronous on desktop; a promise tick on phones
+// Encoded here so tests exercise the ordering that actually ships, rather than
+// an assumed one — getting this backwards silently broke /quran once already.
+export class SuggestModal<T> {
+	onClose(): void {}
+	close(): void {
+		this.onClose();
+	}
+	selectSuggestion(value: T, evt: unknown): void {
+		this.close();
+		(this as unknown as { onChooseSuggestion(v: T, e: unknown): void }).onChooseSuggestion(value, evt);
+	}
+}
 export class Setting {}
 export class Notice {}
 export class Menu {}

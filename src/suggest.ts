@@ -43,9 +43,17 @@ export const HONORIFICS: Honorific[] = [
 import type { SlashItem } from "./api";
 
 /** What the slash menu renders. Falah's built-ins plus, at the end, whatever
- *  companion plugins registered. */
+ *  companion plugins registered.
+ *
+ *  `quran` and `hadith` are kept as two separate members (rather than one
+ *  member whose `type` field is itself `"quran" | "hadith"`) so the union stays
+ *  properly discriminated on `type` — that's what lets the dispatch in
+ *  `selectSuggestion` end in a `never`-checked `else` instead of an
+ *  `else if (item.type === "registered")` that would silently drop a future
+ *  5th variant at runtime. */
 type SlashEntry =
-	| { type: "quran" | "hadith"; label: string; keywords: string }
+	| { type: "quran"; label: string; keywords: string }
+	| { type: "hadith"; label: string; keywords: string }
 	| { type: "honorific"; honorific: Honorific; label: string; keywords: string }
 	| { type: "registered"; item: SlashItem; label: string; keywords: string };
 
@@ -97,7 +105,7 @@ export class SlashSuggest extends EditorSuggest<SlashEntry> {
 	getSuggestions(ctx: EditorSuggestContext): SlashEntry[] {
 		const q = ctx.query;
 		return allEntries(this.plugin).filter(
-			(i) => !q || i.label.toLowerCase().includes(q) || i.keywords.includes(q)
+			(i) => !q || i.label.toLowerCase().includes(q) || i.keywords.toLowerCase().includes(q)
 		);
 	}
 
@@ -134,6 +142,11 @@ export class SlashSuggest extends EditorSuggest<SlashEntry> {
 			} catch (e) {
 				logMessage(errMsg(e), "error");
 			}
+		} else {
+			// Exhaustiveness check: a 5th SlashEntry variant left unhandled above
+			// fails `tsc` here instead of being silently dropped at runtime.
+			const unreachable: never = item;
+			void unreachable;
 		}
 	}
 }
@@ -174,14 +187,25 @@ export class QuranSearchModal extends SuggestModal<QuranSearchResult> {
 		el.createDiv({ cls: "falah-suggest-snippet", text: r.snippet });
 	}
 
-	// Only records. Reporting happens in onClose so that a dismissal without a
-	// choice still settles the caller.
-	onChooseSuggestion(r: QuranSearchResult): void {
-		this.picked = r.ref;
+	// Obsidian's SuggestModal.selectSuggestion calls close() BEFORE
+	// onChooseSuggestion, and on desktop close() runs onClose() synchronously
+	// (verified by decompiling obsidian.asar). Recording in onChooseSuggestion
+	// would therefore be too late for onClose to see. Record here instead — this
+	// runs before close(), so it is correct on desktop and mobile alike.
+	selectSuggestion(value: QuranSearchResult, evt: MouseEvent | KeyboardEvent): void {
+		this.picked = value.ref;
+		super.selectSuggestion(value, evt);
 	}
+
+	// Required by SuggestModal. The recording happens in selectSuggestion (above)
+	// and the reporting in onClose, so there is nothing to do here.
+	onChooseSuggestion(): void {}
 
 	onClose(): void {
 		super.onClose();
+		// Reporting exactly once, from the one callback that fires on EVERY exit
+		// path (choose, Escape, click-away). A caller awaiting pickVerse() would
+		// hang forever if this never fired.
 		if (this.settled) return;
 		this.settled = true;
 		this.onResult(this.picked);
