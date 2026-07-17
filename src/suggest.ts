@@ -11,7 +11,7 @@ import {
 	TFile,
 } from "obsidian";
 import { parseShorthand, toLabel } from "./ref";
-import type { HadithRef } from "./ref";
+import type { HadithRef, QuranRef } from "./ref";
 import type { QuranSearchResult } from "./providers";
 import { errMsg } from "./providers";
 import { logMessage } from "./log";
@@ -99,13 +99,24 @@ export class SlashSuggest extends EditorSuggest<SlashItem> {
 			return;
 		}
 		editor.replaceRange("", start, end);
-		if (item.type === "quran") new QuranSearchModal(this.plugin, editor).open();
-		else new HadithCollectionPickerModal(this.plugin, editor).open();
+		if (item.type === "quran") {
+			new QuranSearchModal(this.plugin, (ref) => {
+				if (ref) void this.plugin.insertReference(editor, ref);
+			}).open();
+		} else new HadithCollectionPickerModal(this.plugin, editor).open();
 	}
 }
 
 export class QuranSearchModal extends SuggestModal<QuranSearchResult> {
-	constructor(private plugin: FalahPlugin, private editor: Editor) {
+	private picked: QuranRef | undefined;
+	private settled = false;
+
+	/** `onResult` fires exactly once: with the chosen ref, or with undefined if the
+	 *  modal is dismissed without a choice. Callers awaiting it would hang otherwise. */
+	constructor(
+		private plugin: FalahPlugin,
+		private onResult: (ref: QuranRef | undefined) => void
+	) {
 		super(plugin.app);
 		this.setPlaceholder(t().suggestQuranSearchPlaceholder);
 		this.emptyStateText = t().suggestQuranEmptyState;
@@ -132,8 +143,17 @@ export class QuranSearchModal extends SuggestModal<QuranSearchResult> {
 		el.createDiv({ cls: "falah-suggest-snippet", text: r.snippet });
 	}
 
+	// Only records. Reporting happens in onClose so that a dismissal without a
+	// choice still settles the caller.
 	onChooseSuggestion(r: QuranSearchResult): void {
-		void this.plugin.insertReference(this.editor, r.ref);
+		this.picked = r.ref;
+	}
+
+	onClose(): void {
+		super.onClose();
+		if (this.settled) return;
+		this.settled = true;
+		this.onResult(this.picked);
 	}
 }
 

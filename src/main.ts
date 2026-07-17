@@ -5,6 +5,7 @@ import { Editor, Plugin, PluginSettingTab, Setting, requestUrl } from "obsidian"
 import type { WorkspaceLeaf } from "obsidian";
 import {
 	IslamicReference,
+	QuranRef,
 	RenderedText,
 	findReferences,
 	parseRefUri,
@@ -238,7 +239,10 @@ export default class FalahPlugin extends Plugin {
 		this.addCommand({
 			id: "insert-quran",
 			name: t().cmdInsertQuran,
-			editorCallback: (editor) => new QuranSearchModal(this, editor).open(),
+			editorCallback: (editor) =>
+				new QuranSearchModal(this, (ref) => {
+					if (ref) void this.insertReference(editor, ref);
+				}).open(),
 		});
 		this.addCommand({
 			id: "insert-hadith",
@@ -283,6 +287,15 @@ export default class FalahPlugin extends Plugin {
 
 	openDetail(ref: IslamicReference): void {
 		new ReferenceDetailModal(this, ref).open();
+	}
+
+	/** Ask the user to choose a verse, via the same search modal `/quran` uses.
+	 *  Resolves undefined if they dismiss without choosing. Exposed on the API so
+	 *  companions can reuse this picker instead of building their own. */
+	pickVerse(): Promise<QuranRef | undefined> {
+		return new Promise((resolve) => {
+			new QuranSearchModal(this, resolve).open();
+		});
 	}
 
 	/** CSS font-family stack for the Quran Arabic of a given script. */
