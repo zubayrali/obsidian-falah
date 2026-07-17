@@ -1,3 +1,7 @@
+/* eslint-disable obsidianmd/hardcoded-config-path -- makeFileIO takes baseDir as an
+   opaque argument and never derives it; production passes manifest.dir, which Obsidian
+   already resolves against the user's configured config folder. These are fixtures
+   picking one concrete baseDir to assert prefixing against, not a config-path lookup. */
 import { describe, expect, it } from "vitest";
 import { makeFetchJson, makeFileIO } from "./obsidian-io";
 import type { DataAdapterLike, RequestUrlLike } from "./obsidian-io";

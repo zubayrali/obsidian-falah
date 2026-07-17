@@ -340,6 +340,7 @@ export class SourceChain implements ContentSource {
 				firstError ??= e;
 			}
 		}
+		// eslint-disable-next-line @typescript-eslint/only-throw-error -- firstError is a caught error being re-thrown; rethrowing it as-is preserves the original type and stack, which wrapping it in a new Error would discard.
 		if (firstError !== undefined) throw firstError;
 		throw new NotFoundError(`No source supports ${ref.kind} references`);
 	}
