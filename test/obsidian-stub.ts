@@ -22,8 +22,11 @@ export class Plugin {}
 export class PluginSettingTab {}
 export class Modal {}
 export class ItemView {}
-export class EditorSuggest<T> {}
-export class SuggestModal<T> {}
+// No type parameters, unlike the real EditorSuggest<T>/SuggestModal<T>: this
+// alias is runtime-only (tsc still resolves the genuine obsidian.d.ts), so a
+// generic here would be erased before it could check anything.
+export class EditorSuggest {}
+export class SuggestModal {}
 export class Setting {}
 export class Notice {}
 export class Menu {}

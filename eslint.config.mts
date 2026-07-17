@@ -8,6 +8,10 @@ export default defineConfig(
 		'dist',
 		'esbuild.config.mjs',
 		'version-bump.mjs',
+		// Dev-time only (`npm run build:core`), never shipped or executed by the
+		// plugin — same category as the two build scripts above. It is a node
+		// script, so the mobile-safety rules here do not apply to it.
+		'assets/bundled-core/build.ts',
 		'versions.json',
 		'main.js',
 		'package.json',
@@ -21,7 +25,16 @@ export default defineConfig(
 			},
 			parserOptions: {
 				projectService: {
-					allowDefaultProject: ['eslint.config.mts', 'manifest.json'],
+					// tsconfig.json only includes src/**/*.ts, so these tooling files
+					// are outside the project service and would otherwise be a parse
+					// error under `eslint .` (what CI runs). Listing them lints them;
+					// it disables nothing.
+					allowDefaultProject: [
+						'eslint.config.mts',
+						'manifest.json',
+						'vitest.config.ts',
+						'test/obsidian-stub.ts',
+					],
 				},
 				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json'],
