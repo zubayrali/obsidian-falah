@@ -2,7 +2,7 @@
 	"id": "falah",
 	"name": "Falah",
 	"version": "0.1.0",
-	"minAppVersion": "1.5.0",
+	"minAppVersion": "1.7.2",
 	"description": "Clickable Quran and Hadith references, a Quran reader, slash-command lookup, and honorifics in native Markdown notes.",
 	"author": "Zubayr Ali",
 	"isDesktopOnly": false

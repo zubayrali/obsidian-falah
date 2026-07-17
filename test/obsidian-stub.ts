@@ -12,6 +12,12 @@ export function requestUrl(): never {
 	throw new Error("requestUrl stub called — inject a fake instead of hitting the real network in tests");
 }
 
+// getLocale() reads this; outside Obsidian there is no configured UI language,
+// so answer with the same default getLocale() would fall back to anyway.
+export function getLanguage(): string {
+	return "en";
+}
+
 export class Plugin {}
 export class PluginSettingTab {}
 export class Modal {}

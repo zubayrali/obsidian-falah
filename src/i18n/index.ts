@@ -1,3 +1,4 @@
+import { getLanguage } from "obsidian";
 import { en, type Strings } from "./en";
 import { ar } from "./ar";
 
@@ -22,12 +23,12 @@ export function buildStrings(
 	return { ...en, ...resolveBundle(locale, bundles) };
 }
 
-/** Obsidian stores the UI language in localStorage; fall back to the browser's.
- *  Defensive so it can't throw outside a window (tests, node). */
+/** Obsidian's UI language; fall back to the browser's.
+ *  Defensive so it can't throw outside Obsidian or a window (tests, node). */
 export function getLocale(): string {
-	if (typeof window === "undefined") return "en";
 	try {
-		return window.localStorage?.getItem("language") || window.navigator?.language || "en";
+		const browser = typeof window === "undefined" ? undefined : window.navigator?.language;
+		return getLanguage() || browser || "en";
 	} catch {
 		return "en";
 	}
