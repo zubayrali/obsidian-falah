@@ -152,7 +152,9 @@ export class HadithResolver {
 			.map((e) => ({
 				id: e.id,
 				source: e.provenance ?? "",
-				collection: String(e.meta?.collection ?? e.id.split("-")[1] ?? ""),
+				// meta is Record<string, unknown>: only a string is a usable collection
+				// name — anything else falls through rather than stringifying to junk.
+				collection: typeof e.meta?.collection === "string" ? e.meta.collection : (e.id.split("-")[1] ?? ""),
 				language: e.language,
 				name: e.name,
 				version: e.version,

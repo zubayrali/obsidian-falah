@@ -96,4 +96,13 @@ describe("HadithResolver install/remove/list", () => {
 		list = await resolver.listInstalled();
 		expect(list).toEqual([]);
 	});
+
+	it("falls back to the id segment when meta.collection isn't a string", async () => {
+		const { resolver, index } = makeResolver();
+		// meta is Record<string, unknown>, so a malformed index entry can hold a
+		// non-string here; it must never stringify into the collection name.
+		await index.put({ id: "fawazahmed0-bukhari-eng", type: "hadith-collection", name: "Sahih al-Bukhari", language: "eng", tier: "downloaded", provenance: "fawazahmed0", count: 1, installedAt: 1, meta: { collection: { en: "bukhari" } } });
+		const list = await resolver.listInstalled();
+		expect(list.map((d) => d.collection)).toEqual(["bukhari"]);
+	});
 });
