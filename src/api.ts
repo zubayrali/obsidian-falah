@@ -1,7 +1,7 @@
 // Falah's public extension API. Consumed by companion plugins (obsidian-tadabbur)
 // via app.plugins.plugins["falah"].api. This surface is FROZEN — breaking it
 // requires bumping FALAH_API_VERSION and the consumers' minimum.
-import type { App } from "obsidian";
+import type { App, Editor, TFile } from "obsidian";
 import type { VerseAction, VerseContext } from "./verse-actions";
 import type { IslamicReference, RenderedText, FoundReference } from "./ref";
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
@@ -24,6 +24,22 @@ export const FALAH_API_READY_EVENT = "falah:api-ready";
 
 export type AyahRowDecorator = (row: HTMLElement, ctx: VerseContext) => void;
 export interface VerseText { arabic: string; translation?: string }
+
+/** An entry a companion plugin contributes to Falah's slash menu. */
+export interface SlashItem {
+	id: string;
+	label: string;
+	/** Space-separated search terms, matched against the typed query alongside `label`. */
+	keywords: string;
+	/** Invoked AFTER Falah has already removed the trigger text (e.g. "/reflect")
+	 *  from the editor, so the handler starts from a clean cursor.
+	 *
+	 *  `file` is typed nullable on purpose. Obsidian declares
+	 *  EditorSuggestContext.file as a non-null TFile, but that typing is optimistic
+	 *  and a handler that assumes it would crash rather than degrade. Handlers
+	 *  guard and skip file-scoped work instead. */
+	onSelect(editor: Editor, file: TFile | null): void | Promise<void>;
+}
 
 export interface FalahRefApi {
 	toUri(ref: IslamicReference): string;
@@ -59,6 +75,22 @@ export class VerseActionRegistry {
 	}
 	list(): VerseAction[] {
 		return [...this.defaults, ...this.extra];
+	}
+}
+
+/** Registry for companion-contributed slash entries. No defaults: Falah's own
+ *  slash entries have a different shape and live in suggest.ts. */
+export class SlashItemRegistry {
+	private items: SlashItem[] = [];
+	register(item: SlashItem): () => void {
+		this.items.push(item);
+		return () => {
+			const i = this.items.indexOf(item);
+			if (i >= 0) this.items.splice(i, 1);
+		};
+	}
+	list(): SlashItem[] {
+		return [...this.items];
 	}
 }
 
