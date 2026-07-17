@@ -30,7 +30,7 @@ class ChipWidget extends WidgetType {
 	}
 
 	toDOM(): HTMLElement {
-		const el = document.createElement("span");
+		const el = createSpan();
 		el.className = `falah-chip falah-chip-${this.ref.kind}`;
 		el.textContent = this.label || toLabel(this.ref);
 		el.setAttribute("role", "button");

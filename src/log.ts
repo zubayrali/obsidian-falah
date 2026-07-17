@@ -20,6 +20,7 @@ export function logMessage(
 	const line = `Falah: ${message}`;
 	if (level === "error") console.error(line);
 	else if (level === "warn") console.warn(line);
-	// eslint-disable-next-line obsidianmd/rule-custom-message -- the console line is this function's purpose, not incidental debug logging: every user-facing Notice gets a matching console trace a bug report can quote. Guidance targets unnecessary logging; this is the necessary kind.
-	else console.info(line);
+	// debug, not info: Obsidian's guidelines allow warn/error/debug only. The
+	// trace survives (info-level lines are the ones a bug report rarely quotes).
+	else console.debug(line);
 }

@@ -12,7 +12,7 @@ export function falahPostProcessor(plugin: FalahPlugin): MarkdownPostProcessor {
 			if (!href.startsWith("falah://")) continue;
 			const ref = parseRefUri(href);
 			if (!ref) continue; // malformed reference: leave the raw link visible, never mutate
-			const chip = document.createElement("span");
+			const chip = createSpan();
 			chip.className = `falah-chip falah-chip-${ref.kind}`;
 			chip.textContent = a.textContent || toLabel(ref);
 			chip.setAttribute("role", "button");

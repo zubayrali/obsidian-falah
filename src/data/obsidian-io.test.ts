@@ -1,14 +1,14 @@
-/* eslint-disable obsidianmd/hardcoded-config-path -- makeFileIO takes baseDir as an
-   opaque argument and never derives it; production passes manifest.dir, which Obsidian
-   already resolves against the user's configured config folder. These are fixtures
-   picking one concrete baseDir to assert prefixing against, not a config-path lookup. */
 import { describe, expect, it } from "vitest";
 import { makeFetchJson, makeFileIO } from "./obsidian-io";
 import type { DataAdapterLike, RequestUrlLike } from "./obsidian-io";
 import { DataError, NetworkError } from "./schema";
 
 /** In-memory DataAdapter fake. Stores absolute (baseDir-prefixed) paths exactly as
- *  the FileIO shim passes them, so the tests assert real path-prefixing behavior. */
+ *  the FileIO shim passes them, so the tests assert real path-prefixing behavior.
+ *
+ *  Fixtures below deliberately use a "custom-config" folder rather than ".obsidian":
+ *  makeFileIO treats baseDir as opaque and production passes manifest.dir, which
+ *  Obsidian resolves against whatever config folder the user configured. */
 function fakeAdapter(seed?: {
 	files?: Record<string, string>;
 	folders?: Set<string>;
@@ -68,17 +68,17 @@ function fakeAdapter(seed?: {
 describe("makeFileIO", () => {
 	it("write then read round-trips through the adapter", async () => {
 		const adapter = fakeAdapter();
-		const io = makeFileIO(adapter, ".obsidian/plugins/qirtaas");
+		const io = makeFileIO(adapter, "custom-config/plugins/qirtaas");
 		await io.write("qdata/translations/x/001.json", "[1,2,3]");
 		expect(await io.read("qdata/translations/x/001.json")).toBe("[1,2,3]");
 	});
 
 	it("prefixes every path with baseDir", async () => {
 		const adapter = fakeAdapter();
-		const io = makeFileIO(adapter, ".obsidian/plugins/qirtaas");
+		const io = makeFileIO(adapter, "custom-config/plugins/qirtaas");
 		await io.write("qdata/index.json", "{}");
 		// The adapter stores under the absolute, baseDir-prefixed key.
-		expect(await adapter.exists(".obsidian/plugins/qirtaas/qdata/index.json")).toBe(true);
+		expect(await adapter.exists("custom-config/plugins/qirtaas/qdata/index.json")).toBe(true);
 		expect(await adapter.exists("qdata/index.json")).toBe(false);
 	});
 
@@ -104,7 +104,7 @@ describe("makeFileIO", () => {
 	});
 
 	it("list() adapts Obsidian's full-path return into relative names", async () => {
-		const base = ".obsidian/plugins/qirtaas";
+		const base = "custom-config/plugins/qirtaas";
 		const adapter = fakeAdapter({
 			files: {
 				[`${base}/qdata/translations/en.sahih/001.json`]: "[]",
