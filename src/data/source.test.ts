@@ -326,7 +326,7 @@ describe("SourceChain", () => {
 
 import { LiveApiSource, RefCache } from "./source";
 import { NetworkError } from "./schema";
-import type { HadithProvider, HadithSearchResult, QuranProvider, QuranSearchResult } from "../providers";
+import type { HadithProvider, QuranProvider } from "../providers";
 
 describe("LiveApiSource", () => {
 	function makeLiveApiSource() {

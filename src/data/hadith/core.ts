@@ -6,7 +6,7 @@
 import nawawi40 from "./data/nawawi40.json";
 import type { HadithCollection } from "./schema";
 
-const BUNDLED: HadithCollection[] = [nawawi40 as HadithCollection];
+const BUNDLED: HadithCollection[] = [nawawi40];
 
 export class HadithCoreLoader {
 	listCollections(): HadithCollection[] {

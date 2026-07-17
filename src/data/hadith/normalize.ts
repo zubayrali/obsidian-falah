@@ -29,7 +29,7 @@ function cleanGrades(g: FawazHadith["grades"]): { name: string; grade: string }[
  *  code ("ara" when arabic-only). */
 export function normalizeFawaz(
 	arabicEd: unknown,
-	translationEd: unknown | null,
+	translationEd: unknown,
 	meta: { source: string; collection: string; language: string }
 ): HadithCollection {
 	const ar = arabicEd as FawazEdition;

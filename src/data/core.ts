@@ -80,17 +80,12 @@ export class CoreLoader {
 }
 
 // Real wiring for main.ts (Task 9). JSON-module type inference widens literal
-// unions (e.g. Surah.revelationPlace) to `string`, so each import is asserted
-// to its true schema type rather than left to structural inference.
+// unions (e.g. Surah.revelationPlace) to `string`, so an import whose schema has
+// one is asserted to its true type; the rest infer structurally.
 export const defaultCoreImportMap: CoreImportMap = {
-	uthmani: () =>
-		import("../../assets/bundled-core/uthmani.json") as unknown as Promise<{ default: Ayah[] }>,
-	indopak: () =>
-		import("../../assets/bundled-core/indopak.json") as unknown as Promise<{ default: Ayah[] }>,
-	clearquran: () =>
-		import("../../assets/bundled-core/clearquran.json") as unknown as Promise<{
-			default: TranslationVerse[];
-		}>,
+	uthmani: () => import("../../assets/bundled-core/uthmani.json"),
+	indopak: () => import("../../assets/bundled-core/indopak.json"),
+	clearquran: () => import("../../assets/bundled-core/clearquran.json"),
 	surahs: () =>
 		import("../../assets/bundled-core/surahs.json") as unknown as Promise<{ default: Surah[] }>,
 };

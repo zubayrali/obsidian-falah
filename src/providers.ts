@@ -56,6 +56,23 @@ interface AlQuranEditionAyah {
 	surah: { number: number; name: string; englishName: string; numberOfAyahs: number };
 }
 
+// `requestUrl` types its `json` as `any`, so reaching into a response is
+// unchecked. These name the exact slice of alquran.cloud's envelope each call
+// touches, keeping the access type-checked without widening to `any`.
+interface AlQuranEnvelope<T> {
+	data: T;
+}
+
+interface AlQuranSearchMatch {
+	text?: string;
+	numberInSurah: number;
+	surah: { number: number; englishName: string };
+}
+
+interface AlQuranSearchEnvelope {
+	data?: { matches?: AlQuranSearchMatch[] };
+}
+
 export class AlQuranCloudProvider implements QuranProvider {
 	constructor(private editions: () => { translation: string; tafsir: string }) {}
 
@@ -74,7 +91,7 @@ export class AlQuranCloudProvider implements QuranProvider {
 					throw: false,
 				});
 				if (res.status !== 200) throw new Error(`Quran ${ref.surah}:${a} not found`);
-				return res.json.data as AlQuranEditionAyah[];
+				return (res.json as AlQuranEnvelope<AlQuranEditionAyah[]>).data;
 			})
 		);
 
@@ -123,11 +140,7 @@ export class AlQuranCloudProvider implements QuranProvider {
 			throw: false,
 		});
 		if (res.status !== 200) return [];
-		const matches = (res.json?.data?.matches ?? []) as Array<{
-			text?: string;
-			numberInSurah: number;
-			surah: { number: number; englishName: string };
-		}>;
+		const matches = (res.json as AlQuranSearchEnvelope | undefined)?.data?.matches ?? [];
 		return matches.slice(0, 20).map((m) => ({
 			ref: { kind: "quran" as const, surah: m.surah.number, ayah: m.numberInSurah },
 			snippet: String(m.text ?? "").replace(/<[^>]*>/g, ""),

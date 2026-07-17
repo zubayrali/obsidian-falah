@@ -188,7 +188,7 @@ export default class FalahPlugin extends Plugin {
 		this.hadithFetchText = (url) =>
 			requestUrl({ url, throw: false }).then((r) => {
 				if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}`);
-				return r.text as unknown;
+				return r.text;
 			});
 		this.hadith = new HadithResolver(hadithStore, hadithIndex, new HadithCoreLoader(), {
 			getHadith: (ref) => hadithProvider.getHadith(ref),

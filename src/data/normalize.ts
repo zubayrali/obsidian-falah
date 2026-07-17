@@ -214,8 +214,8 @@ function decodeEntities(s: string): string {
 		.replace(/&mdash;/g, "—")
 		.replace(/&ndash;/g, "–")
 		.replace(/&hellip;/g, "…")
-		.replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-		.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+		.replace(/&#x([0-9a-fA-F]+);/g, (_: string, h: string) => String.fromCodePoint(parseInt(h, 16)))
+		.replace(/&#(\d+);/g, (_: string, n: string) => String.fromCodePoint(Number(n)))
 		.replace(/&amp;/g, "&");
 }
 
@@ -297,7 +297,7 @@ export function normalizePack(
 		body.id.includes("..") ||
 		body.id.startsWith(".") ||
 		body.id.includes(":") ||
-		// eslint-disable-next-line no-control-regex
+		// eslint-disable-next-line no-control-regex -- matching control chars is the point: they must be rejected from an id that becomes a file path.
 		/[\x00-\x1f\x7f]/.test(body.id)
 	) {
 		throw new SchemaError(`import pack: unsafe id "${body.id}" (path separators, "..", leading ".", ":" and control chars are not allowed)`);
