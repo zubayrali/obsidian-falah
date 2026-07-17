@@ -29,4 +29,15 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		// Specs run under Vitest in node, where `window` does not exist — a bare
+		// `setTimeout` here is the node global, not a document timer, and the
+		// rule's `window.setTimeout` fix would throw. The popout-window concern
+		// only applies to plugin code running inside Obsidian, so scope the rule
+		// to shipped code rather than turning it off everywhere.
+		files: ['**/*.test.ts'],
+		rules: {
+			'obsidianmd/prefer-window-timers': 'off',
+		},
+	},
 );
