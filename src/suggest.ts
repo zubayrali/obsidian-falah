@@ -40,14 +40,18 @@ export const HONORIFICS: Honorific[] = [
 	{ insert: "رَحِمَهَا ٱللَّهُ", label: "رحمها الله  raḥimahallāh", keywords: "rah mercy scholar female rahimahallah" },
 ];
 
-type SlashItem =
+import type { SlashItem } from "./api";
+
+/** What the slash menu renders. Falah's built-ins plus, at the end, whatever
+ *  companion plugins registered. */
+type SlashEntry =
 	| { type: "quran" | "hadith"; label: string; keywords: string }
-	| { type: "honorific"; honorific: Honorific; label: string; keywords: string };
+	| { type: "honorific"; honorific: Honorific; label: string; keywords: string }
+	| { type: "registered"; item: SlashItem; label: string; keywords: string };
 
 /** Built lazily (not a module-level constant) so it always reflects the current
- *  locale — Obsidian may not have its localStorage-backed language ready yet at
- *  module-import time. */
-function baseItems(): SlashItem[] {
+ *  locale — Obsidian may not have its language ready at module-import time. */
+function baseItems(): SlashEntry[] {
 	return [
 		{ type: "quran", label: t().suggestQuranVerse, keywords: "quran ayah verse surah" },
 		{ type: "hadith", label: t().suggestHadithReference, keywords: "hadith sunnah bukhari muslim" },
@@ -60,7 +64,21 @@ function baseItems(): SlashItem[] {
 	];
 }
 
-export class SlashSuggest extends EditorSuggest<SlashItem> {
+/** Built-ins first, then registered items — so a companion can never displace or
+ *  reorder Falah's own entries. */
+function allEntries(plugin: FalahPlugin): SlashEntry[] {
+	return [
+		...baseItems(),
+		...plugin.slashItemList().map((item) => ({
+			type: "registered" as const,
+			item,
+			label: item.label,
+			keywords: item.keywords,
+		})),
+	];
+}
+
+export class SlashSuggest extends EditorSuggest<SlashEntry> {
 	constructor(private plugin: FalahPlugin) {
 		super(plugin.app);
 	}
@@ -76,18 +94,18 @@ export class SlashSuggest extends EditorSuggest<SlashItem> {
 		};
 	}
 
-	getSuggestions(ctx: EditorSuggestContext): SlashItem[] {
+	getSuggestions(ctx: EditorSuggestContext): SlashEntry[] {
 		const q = ctx.query;
-		return baseItems().filter(
+		return allEntries(this.plugin).filter(
 			(i) => !q || i.label.toLowerCase().includes(q) || i.keywords.includes(q)
 		);
 	}
 
-	renderSuggestion(item: SlashItem, el: HTMLElement): void {
+	renderSuggestion(item: SlashEntry, el: HTMLElement): void {
 		el.createDiv({ text: item.label });
 	}
 
-	selectSuggestion(item: SlashItem, _evt: MouseEvent | KeyboardEvent): void {
+	selectSuggestion(item: SlashEntry, _evt: MouseEvent | KeyboardEvent): void {
 		const ctx = this.context;
 		if (!ctx) return;
 		const { editor, start, end } = ctx;
@@ -98,12 +116,25 @@ export class SlashSuggest extends EditorSuggest<SlashItem> {
 			editor.setCursor({ line: start.line, ch: start.ch + text.length });
 			return;
 		}
+		// Clear the trigger text first, so every handler below starts from a clean
+		// cursor — registered items included (their contract promises this).
 		editor.replaceRange("", start, end);
 		if (item.type === "quran") {
 			new QuranSearchModal(this.plugin, (ref) => {
 				if (ref) void this.plugin.insertReference(editor, ref);
 			}).open();
-		} else new HadithCollectionPickerModal(this.plugin, editor).open();
+		} else if (item.type === "hadith") {
+			new HadithCollectionPickerModal(this.plugin, editor).open();
+		} else if (item.type === "registered") {
+			// A companion's handler must never break Falah's editor: swallow and log.
+			try {
+				void Promise.resolve(item.item.onSelect(editor, ctx.file)).catch((e) =>
+					logMessage(errMsg(e), "error")
+				);
+			} catch (e) {
+				logMessage(errMsg(e), "error");
+			}
+		}
 	}
 }
 

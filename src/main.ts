@@ -55,6 +55,7 @@ import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStac
 import { FontManager, enumerateSystemFonts } from "./font-loader";
 import {
 	VerseActionRegistry,
+	SlashItemRegistry,
 	FALAH_REF,
 	FALAH_API_VERSION,
 	FALAH_API_READY_EVENT,
@@ -62,6 +63,7 @@ import {
 	type FalahApi,
 	type AyahRowDecorator,
 	type VerseText,
+	type SlashItem,
 } from "./api";
 
 /** The Tadabbur companion — reflection/journaling built on Falah's public API. */
@@ -106,6 +108,7 @@ export default class FalahPlugin extends Plugin {
 	/** Per-verse menu actions; seeded with the defaults, appendable by future
 	 *  subsystems (audio, journaling) without touching the reader. */
 	private verseActionRegistry = new VerseActionRegistry(defaultVerseActions());
+	private slashItemRegistry = new SlashItemRegistry();
 	ayahRowDecorators: AyahRowDecorator[] = [];
 	api!: FalahApi;
 	fonts!: FontManager;
@@ -115,6 +118,12 @@ export default class FalahPlugin extends Plugin {
 	}
 	verseActionList(): VerseAction[] {
 		return this.verseActionRegistry.list();
+	}
+	registerSlashItem(item: SlashItem): () => void {
+		return this.slashItemRegistry.register(item);
+	}
+	slashItemList(): SlashItem[] {
+		return this.slashItemRegistry.list();
 	}
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void {
 		this.ayahRowDecorators.push(decorator);
@@ -212,6 +221,8 @@ export default class FalahPlugin extends Plugin {
 			version: FALAH_API_VERSION,
 			registerVerseAction: (a) => this.registerVerseAction(a),
 			registerAyahRowDecorator: (d) => this.registerAyahRowDecorator(d),
+			registerSlashItem: (i) => this.registerSlashItem(i),
+			pickVerse: () => this.pickVerse(),
 			getVerseText: (s, a) => this.getVerseText(s, a),
 			navigateReaderTo: (s, a) => this.navigateReaderTo(s, a),
 			refreshReader: () => this.refreshReaderRows(),

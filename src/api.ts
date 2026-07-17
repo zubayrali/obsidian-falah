@@ -3,10 +3,10 @@
 // requires bumping FALAH_API_VERSION and the consumers' minimum.
 import type { App, Editor, TFile } from "obsidian";
 import type { VerseAction, VerseContext } from "./verse-actions";
-import type { IslamicReference, RenderedText, FoundReference } from "./ref";
+import type { IslamicReference, QuranRef, RenderedText, FoundReference } from "./ref";
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
 
-export const FALAH_API_VERSION = 3;
+export const FALAH_API_VERSION = 4;
 
 /** True when `id` is in the user's enabled-plugin set. Unlike reading
  *  `app.plugins.plugins[id]`, this is load-order independent: `enabledPlugins`
@@ -53,6 +53,13 @@ export interface FalahApi {
 	readonly version: number;
 	registerVerseAction(action: VerseAction): () => void;
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void;
+	/** Contribute an entry to Falah's slash menu. Added in v4. Falah owns the "/"
+	 *  trigger — a companion registering its own EditorSuggest on "/" would race
+	 *  this one in onTrigger. */
+	registerSlashItem(item: SlashItem): () => void;
+	/** Ask the user to choose a verse using Falah's own search modal. Resolves
+	 *  undefined if dismissed without a choice. Added in v4. */
+	pickVerse(): Promise<QuranRef | undefined>;
 	getVerseText(surah: number, ayah: number): Promise<VerseText | undefined>;
 	navigateReaderTo(surah: number, ayah: number): void;
 	/** Re-render the open Quran reader's ayah rows (re-runs row decorators). No-op if
