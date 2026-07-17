@@ -523,7 +523,7 @@ class FalahSettingTab extends PluginSettingTab {
 	private renderCompanionZone(containerEl: HTMLElement): void {
 		if (isPluginEnabled(this.app, TADABBUR_PLUGIN_ID)) return;
 
-		containerEl.createEl("h3", { text: t().setHeadingCompanion });
+		new Setting(containerEl).setName(t().setHeadingCompanion).setHeading();
 		const box = containerEl.createDiv({ cls: "falah-companion" });
 		box.createDiv({ cls: "falah-companion-title", text: t().libraryCompanionTitle });
 		box.createDiv({
@@ -540,7 +540,7 @@ class FalahSettingTab extends PluginSettingTab {
 	}
 
 	private renderDisplayZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		containerEl.createEl("h3", { text: t().setHeadingDisplay });
+		new Setting(containerEl).setName(t().setHeadingDisplay).setHeading();
 
 		new Setting(containerEl)
 			.setName(t().setArabicScriptName)
@@ -651,11 +651,11 @@ class FalahSettingTab extends PluginSettingTab {
 	}
 
 	private renderLibraryZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		containerEl.createEl("h3", { text: t().setHeadingLibrary });
+		new Setting(containerEl).setName(t().setHeadingLibrary).setHeading();
 		const installedIds = new Set(resources.map((r) => r.id));
 
 		// --- Browse & install ---
-		containerEl.createEl("h4", { text: t().setHeadingBrowseInstall });
+		new Setting(containerEl).setName(t().setHeadingBrowseInstall).setHeading();
 
 		const bar = containerEl.createDiv({ cls: "falah-filter-bar" });
 		const searchInput = bar.createEl("input", { type: "search", cls: "falah-search" });
@@ -757,7 +757,7 @@ class FalahSettingTab extends PluginSettingTab {
 		else void fetchCatalog(false);
 
 		// --- Installed resources ---
-		containerEl.createEl("h4", { text: t().setHeadingInstalledResources });
+		new Setting(containerEl).setName(t().setHeadingInstalledResources).setHeading();
 		const installed = resources.filter((x) => x.tier !== "bundled");
 		if (!installed.length) containerEl.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
 		for (const r of installed) {
@@ -773,7 +773,7 @@ class FalahSettingTab extends PluginSettingTab {
 		}
 
 		// --- Manual import ---
-		containerEl.createEl("h4", { text: t().setHeadingManualImport });
+		new Setting(containerEl).setName(t().setHeadingManualImport).setHeading();
 		new Setting(containerEl)
 			.setName(t().setScanImportsName)
 			.setDesc(t().setScanImportsDesc)
@@ -807,7 +807,7 @@ class FalahSettingTab extends PluginSettingTab {
 	}
 
 	private renderHadithLibrary(containerEl: HTMLElement): void {
-		containerEl.createEl("h3", { text: t().setHeadingHadithCollections });
+		new Setting(containerEl).setName(t().setHeadingHadithCollections).setHeading();
 		const hadithBox = containerEl.createDiv({ cls: "falah-hadith-library" });
 
 		const sourceSel = hadithBox.createEl("select", { cls: "dropdown" });
@@ -907,7 +907,7 @@ class FalahSettingTab extends PluginSettingTab {
 		const installedWrap = hadithBox.createDiv({ cls: "falah-hadith-installed" });
 		const renderInstalled = async () => {
 			installedWrap.empty();
-			installedWrap.createEl("h4", { text: t().setHeadingInstalledHadithCollections });
+			new Setting(installedWrap).setName(t().setHeadingInstalledHadithCollections).setHeading();
 			const descs = await this.plugin.hadith.listInstalled();
 			if (!descs.length) {
 				installedWrap.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
