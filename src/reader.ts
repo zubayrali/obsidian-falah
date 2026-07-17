@@ -11,6 +11,7 @@ import type { VerseContext, VerseMenuItem, VerseView } from "./verse-actions";
 import { parseAyahKey } from "./ref";
 import { bundledFontsForScript, dedupeFamilies } from "./fonts";
 import { errMsg } from "./providers";
+import { t } from "./i18n";
 
 export const VIEW_TYPE_QURAN_READER = "falah-quran-reader";
 
@@ -57,7 +58,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 		return VIEW_TYPE_QURAN_READER;
 	}
 	getDisplayText(): string {
-		return "Quran";
+		return t().readerDisplayName;
 	}
 	getIcon(): string {
 		return "book-open";
@@ -168,27 +169,28 @@ export class QuranReaderView extends ItemView implements VerseView {
 	}
 
 	private buildToolbar(surahs: Surah[], resources: ResourceDescriptor[]): void {
-		const t = this.toolbarEl;
-		t.empty();
+		const strings = t();
+		const t_ = this.toolbarEl;
+		t_.empty();
 
-		const prev = t.createEl("button", { text: "‹", cls: "falah-reader-btn" });
+		const prev = t_.createEl("button", { text: "‹", cls: "falah-reader-btn" });
 		prev.disabled = this.state.surah <= 1;
 		prev.onclick = () => this.goSurah(this.state.surah - 1);
 
-		const surahSel = t.createEl("select", { cls: "dropdown" });
+		const surahSel = t_.createEl("select", { cls: "dropdown" });
 		for (const s of surahs) {
-			surahSel.createEl("option", { value: String(s.number), text: `${s.number} · ${s.nameEnglish}` });
+			surahSel.createEl("option", { value: String(s.number), text: strings.readerSurahOption(s.number, s.nameEnglish) });
 		}
 		surahSel.value = String(this.state.surah);
 		surahSel.onchange = () => this.goSurah(Number(surahSel.value));
 
-		const next = t.createEl("button", { text: "›", cls: "falah-reader-btn" });
+		const next = t_.createEl("button", { text: "›", cls: "falah-reader-btn" });
 		next.disabled = this.state.surah >= 114;
 		next.onclick = () => this.goSurah(this.state.surah + 1);
 
-		const scriptSel = t.createEl("select", { cls: "dropdown" });
-		scriptSel.createEl("option", { value: "uthmani", text: "Uthmani" });
-		scriptSel.createEl("option", { value: "indopak", text: "Indo-Pak" });
+		const scriptSel = t_.createEl("select", { cls: "dropdown" });
+		scriptSel.createEl("option", { value: "uthmani", text: strings.readerScriptUthmani });
+		scriptSel.createEl("option", { value: "indopak", text: strings.readerScriptIndopak });
 		scriptSel.value = this.state.script;
 		scriptSel.onchange = () => {
 			this.state.script = scriptSel.value;
@@ -196,7 +198,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.render();
 		};
 
-		const fontSel = t.createEl("select", { cls: "dropdown" });
+		const fontSel = t_.createEl("select", { cls: "dropdown" });
 		const fontFams = dedupeFamilies([
 			...bundledFontsForScript(this.state.script).map((f) => f.family),
 			...this.plugin.fonts.vaultFamilies(),
@@ -210,10 +212,10 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const trSel = t.createEl("select", { cls: "dropdown" });
-		trSel.createEl("option", { value: "", text: "No translation" });
+		const trSel = t_.createEl("select", { cls: "dropdown" });
+		trSel.createEl("option", { value: "", text: strings.readerNoTranslation });
 		for (const r of resources.filter((r) => r.type === "translation")) {
-			trSel.createEl("option", { value: r.id, text: r.tier === "bundled" ? `${r.name} (default)` : r.name });
+			trSel.createEl("option", { value: r.id, text: r.tier === "bundled" ? strings.readerResourceDefault(r.name) : r.name });
 		}
 		trSel.value = this.state.translationId;
 		trSel.onchange = () => {
@@ -222,8 +224,8 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const tfSel = t.createEl("select", { cls: "dropdown" });
-		tfSel.createEl("option", { value: "", text: "No tafsir" });
+		const tfSel = t_.createEl("select", { cls: "dropdown" });
+		tfSel.createEl("option", { value: "", text: strings.readerNoTafsir });
 		for (const r of resources.filter((r) => r.type === "tafsir")) {
 			tfSel.createEl("option", { value: r.id, text: r.name });
 		}
@@ -234,14 +236,18 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const dec = t.createEl("button", { text: "A−", cls: "falah-reader-btn" });
+		const dec = t_.createEl("button", { text: "A−", cls: "falah-reader-btn" });
 		dec.onclick = () => this.setFont(this.state.fontSize - 2);
-		const inc = t.createEl("button", { text: "A+", cls: "falah-reader-btn" });
+		const inc = t_.createEl("button", { text: "A+", cls: "falah-reader-btn" });
 		inc.onclick = () => this.setFont(this.state.fontSize + 2);
 
 		// Pop-out button only when not already in a pop-out window.
 		if (this.containerEl.ownerDocument === document) {
-			const pop = t.createEl("button", { text: "⤢", cls: "falah-reader-btn", attr: { "aria-label": "Pop out" } });
+			const pop = t_.createEl("button", {
+				text: "⤢",
+				cls: "falah-reader-btn",
+				attr: { "aria-label": strings.readerPopOutAriaLabel },
+			});
 			pop.onclick = () => this.plugin.app.workspace.moveLeafToPopout(this.leaf);
 		}
 	}
@@ -271,7 +277,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			this.renderedSurah = this.state.surah;
 		}
 		body.empty();
-		body.createDiv({ cls: "falah-loading", text: "Loading…" });
+		body.createDiv({ cls: "falah-loading", text: t().readerLoading });
 
 		let reading: SurahReading;
 		try {
@@ -293,7 +299,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 		head.createDiv({ cls: "falah-reader-title", text: reading.surah.nameEnglish });
 		head.createDiv({
 			cls: "falah-reader-subtitle",
-			text: `${reading.surah.nameArabic} · ${reading.surah.ayahCount} ayahs`,
+			text: t().readerSurahSubtitle(reading.surah.nameArabic, reading.surah.ayahCount),
 			attr: { dir: "rtl" },
 		});
 		if (reading.showBismillah) {
@@ -365,7 +371,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 				this.addVerseMenuItem(menu, item);
 			}
 		}
-		if (!any) menu.addItem((mi) => mi.setTitle("No verse actions available").setDisabled(true));
+		if (!any) menu.addItem((mi) => mi.setTitle(t().readerNoVerseActions).setDisabled(true));
 		menu.showAtMouseEvent(evt);
 	}
 
@@ -416,7 +422,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 		const menuBtn = row.createEl("button", {
 			cls: "falah-reader-verse-menu",
 			text: "⋯",
-			attr: { "aria-label": "Verse actions" },
+			attr: { "aria-label": t().readerVerseActions },
 		});
 		menuBtn.onclick = (e) => {
 			e.preventDefault();
@@ -455,14 +461,14 @@ export class QuranReaderView extends ItemView implements VerseView {
 	private renderTafsirBlocks(row: HTMLElement, a: ReadingAyah, reading: SurahReading): void {
 		const globalId = this.state.tafsirId;
 		if (globalId && a.tafsir) {
-			this.renderTafsirBlock(row, `Tafsir · ${reading.tafsirName ?? globalId}`, a.tafsir, false);
+			this.renderTafsirBlock(row, t().readerTafsirBlockTitle(reading.tafsirName ?? globalId), a.tafsir, false);
 		}
 		for (const id of this.perVerseTafsir.get(a.ayahKey) ?? []) {
 			if (id === globalId) continue; // already shown as the global block
 			const cached = this.tafsirCache.get(`${id}|${a.ayahKey}`);
 			if (cached === undefined) continue; // fetch in flight
-			const title = `${cached?.name ?? id} (this verse)`;
-			const text = cached ? cached.text : "Tafsir not available for this verse.";
+			const title = t().readerTafsirThisVerse(cached?.name ?? id);
+			const text = cached ? cached.text : t().readerTafsirUnavailable;
 			this.renderTafsirBlock(row, title, text, true, () => void this.toggleVerseTafsir(a.ayahKey, id));
 		}
 	}
@@ -482,7 +488,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			const x = summary.createEl("button", {
 				cls: "falah-reader-tafsir-remove",
 				text: "✕",
-				attr: { "aria-label": "Remove tafsir" },
+				attr: { "aria-label": t().readerRemoveTafsirAriaLabel },
 			});
 			x.onclick = (e) => {
 				e.preventDefault();

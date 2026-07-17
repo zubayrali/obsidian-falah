@@ -505,7 +505,7 @@ class FalahSettingTab extends PluginSettingTab {
 			// an error state rather than leaking an unhandled rejection.
 			logMessage(errMsg(e), "error");
 			containerEl.createEl("p", {
-				text: `Couldn't load installed resources: ${errMsg(e)}`,
+				text: t().libraryLoadResourcesError(errMsg(e)),
 				cls: "falah-settings-error",
 			});
 			return;
@@ -525,17 +525,14 @@ class FalahSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h3", { text: t().setHeadingCompanion });
 		const box = containerEl.createDiv({ cls: "falah-companion" });
-		box.createDiv({ cls: "falah-companion-title", text: "Tadabbur — reflection & journaling" });
+		box.createDiv({ cls: "falah-companion-title", text: t().libraryCompanionTitle });
 		box.createDiv({
 			cls: "falah-companion-desc",
-			text:
-				"Reflect on an ayah straight from the reader and write it to a per-ayah note or your daily note. " +
-				"Falah then shows which of your notes reflect on each verse, and which verses you connect. " +
-				"It's a separate plugin, so Falah stays a reader if that's all you want.",
+			text: t().libraryCompanionDesc,
 		});
 		const link = box.createEl("a", {
 			cls: "falah-companion-link",
-			text: "Get Tadabbur →",
+			text: t().libraryGetTadabbur,
 			href: TADABBUR_URL,
 		});
 		link.setAttr("target", "_blank");
@@ -550,8 +547,8 @@ class FalahSettingTab extends PluginSettingTab {
 			.setDesc(t().setArabicScriptDesc)
 			.addDropdown((d) =>
 				d
-					.addOption("uthmani", "Uthmani")
-					.addOption("indopak", "Indo-Pak")
+					.addOption("uthmani", t().libraryScriptUthmaniOption)
+					.addOption("indopak", t().libraryScriptIndopakOption)
 					.setValue(this.plugin.settings.arabicScript)
 					.onChange(async (v) => {
 						this.plugin.settings.arabicScript = v;
@@ -559,13 +556,13 @@ class FalahSettingTab extends PluginSettingTab {
 					})
 			);
 
-		const label = (r: ResourceDescriptor) => (r.tier === "bundled" ? `${r.name} (default)` : r.name);
+		const label = (r: ResourceDescriptor) => (r.tier === "bundled" ? t().libraryResourceDefault(r.name) : r.name);
 
 		new Setting(containerEl)
 			.setName(t().setPreferredTranslationName)
 			.setDesc(t().setPreferredTranslationDesc)
 			.addDropdown((d) => {
-				d.addOption("", "None");
+				d.addOption("", t().libraryNoneOption);
 				for (const r of resources.filter((x) => x.type === "translation")) d.addOption(r.id, label(r));
 				d.setValue(this.plugin.settings.translationResourceId).onChange(async (v) => {
 					this.plugin.settings.translationResourceId = v;
@@ -577,7 +574,7 @@ class FalahSettingTab extends PluginSettingTab {
 			.setName(t().setPreferredTafsirName)
 			.setDesc(t().setPreferredTafsirDesc)
 			.addDropdown((d) => {
-				d.addOption("", "None");
+				d.addOption("", t().libraryNoneOption);
 				for (const r of resources.filter((x) => x.type === "tafsir")) d.addOption(r.id, label(r));
 				d.setValue(this.plugin.settings.tafsirResourceId).onChange(async (v) => {
 					this.plugin.settings.tafsirResourceId = v;
@@ -613,8 +610,8 @@ class FalahSettingTab extends PluginSettingTab {
 						this.plugin.refreshReader();
 					});
 				})
-				.addText((t) =>
-					t.setPlaceholder("or type a system font…").onChange(async (v) => {
+				.addText((tc) =>
+					tc.setPlaceholder(t().libraryCustomFontPlaceholder).onChange(async (v) => {
 						const fam = v.trim();
 						if (!fam) return;
 						this.plugin.settings.fontByScript[s.id] = fam;
@@ -628,7 +625,7 @@ class FalahSettingTab extends PluginSettingTab {
 			.setName(t().setFontSourcesName)
 			.setDesc(t().setFontSourcesDesc(this.plugin.manifest.dir ?? ""))
 			.addButton((b) =>
-				b.setButtonText("Detect installed fonts").onClick(async () => {
+				b.setButtonText(t().libraryDetectFontsButton).onClick(async () => {
 					try {
 						const fams = await enumerateSystemFonts();
 						if (!fams.length) {
@@ -644,7 +641,7 @@ class FalahSettingTab extends PluginSettingTab {
 				})
 			)
 			.addButton((b) =>
-				b.setButtonText("Reload vault fonts").onClick(async () => {
+				b.setButtonText(t().libraryReloadFontsButton).onClick(async () => {
 					await this.plugin.fonts.reload();
 					logMessage(t().noticeFontsReloaded, "info");
 					this.plugin.refreshReader();
@@ -662,26 +659,26 @@ class FalahSettingTab extends PluginSettingTab {
 
 		const bar = containerEl.createDiv({ cls: "falah-filter-bar" });
 		const searchInput = bar.createEl("input", { type: "search", cls: "falah-search" });
-		searchInput.placeholder = "Search…";
+		searchInput.placeholder = t().libraryResourceSearchPlaceholder;
 		searchInput.value = this.browse.search;
 		const langSelect = bar.createEl("select", { cls: "dropdown falah-lang-select" });
 		const typeSelect = bar.createEl("select", { cls: "dropdown" });
-		typeSelect.createEl("option", { value: "translation", text: "Translation" });
-		typeSelect.createEl("option", { value: "tafsir", text: "Tafsir" });
+		typeSelect.createEl("option", { value: "translation", text: t().libraryTypeTranslationOption });
+		typeSelect.createEl("option", { value: "tafsir", text: t().libraryTypeTafsirOption });
 		typeSelect.value = this.browse.type;
 		const sourceSelect = bar.createEl("select", { cls: "dropdown" });
 		for (const id of ["fawazahmed0", "alquran-cloud", "qul"] as DownloadSourceId[]) {
 			sourceSelect.createEl("option", { value: id, text: SOURCE_LABELS[id] });
 		}
 		sourceSelect.value = this.browse.source;
-		const refreshBtn = bar.createEl("button", { text: "Refresh", cls: "falah-refresh" });
+		const refreshBtn = bar.createEl("button", { text: t().libraryRefreshButton, cls: "falah-refresh" });
 
 		const listEl = containerEl.createDiv({ cls: "falah-resource-list" });
 		const progressEl = containerEl.createDiv({ cls: "falah-download-progress" });
 
 		const rebuildLangOptions = () => {
 			langSelect.empty();
-			langSelect.createEl("option", { value: "", text: "All languages" });
+			langSelect.createEl("option", { value: "", text: t().libraryAllLanguagesOption });
 			for (const { value, name } of distinctLanguages(this.browse.catalog)) {
 				langSelect.createEl("option", { value, text: name });
 			}
@@ -691,11 +688,11 @@ class FalahSettingTab extends PluginSettingTab {
 		const renderList = () => {
 			listEl.empty();
 			if (this.browse.loading) {
-				listEl.createEl("p", { text: "Loading…", cls: "falah-muted" });
+				listEl.createEl("p", { text: t().libraryLoading, cls: "falah-muted" });
 				return;
 			}
 			if (!this.browse.fetched) {
-				listEl.createEl("p", { text: "Pick a source to browse resources.", cls: "falah-muted" });
+				listEl.createEl("p", { text: t().libraryPickSourcePrompt, cls: "falah-muted" });
 				return;
 			}
 			const filtered = filterCatalog(this.browse.catalog, {
@@ -703,7 +700,7 @@ class FalahSettingTab extends PluginSettingTab {
 				language: this.browse.language,
 			});
 			if (!filtered.length) {
-				listEl.createEl("p", { text: "No resources match your filters.", cls: "falah-muted" });
+				listEl.createEl("p", { text: t().libraryNoResourcesMatch, cls: "falah-muted" });
 				return;
 			}
 			for (const desc of filtered) {
@@ -762,14 +759,14 @@ class FalahSettingTab extends PluginSettingTab {
 		// --- Installed resources ---
 		containerEl.createEl("h4", { text: t().setHeadingInstalledResources });
 		const installed = resources.filter((x) => x.tier !== "bundled");
-		if (!installed.length) containerEl.createEl("p", { text: "Nothing installed yet.", cls: "falah-muted" });
+		if (!installed.length) containerEl.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
 		for (const r of installed) {
 			new Setting(containerEl)
 				.setName(r.name)
 				.setDesc(`${r.type} · ${TIER_LABELS[r.tier]}${r.source ? ` · ${SOURCE_LABELS[r.source]}` : ""}`)
 				.addButton((b) =>
 					b
-						.setButtonText("Remove")
+						.setButtonText(t().libraryRemoveButton)
 						.setWarning()
 						.onClick(() => void this.removeResource(r))
 				);
@@ -781,7 +778,7 @@ class FalahSettingTab extends PluginSettingTab {
 			.setName(t().setScanImportsName)
 			.setDesc(t().setScanImportsDesc)
 			.addButton((b) =>
-				b.setButtonText("Scan").onClick(async () => {
+				b.setButtonText(t().libraryScanButton).onClick(async () => {
 					if (this.busy) {
 						logMessage(t().noticeDownloadOrImportInProgress, "warn");
 						return;
@@ -820,7 +817,10 @@ class FalahSettingTab extends PluginSettingTab {
 
 		// sunnah.com API key field (shown only when that source is selected)
 		const keyRow = hadithBox.createDiv({ cls: "falah-hadith-keyrow" });
-		const keyInput = keyRow.createEl("input", { type: "text", attr: { placeholder: "sunnah.com API key" } });
+		const keyInput = keyRow.createEl("input", {
+			type: "text",
+			attr: { placeholder: t().libraryHadithApiKeyPlaceholder },
+		});
 		keyInput.value = this.plugin.settings.hadithSunnahApiKey ?? "";
 		keyInput.onchange = async () => {
 			this.plugin.settings.hadithSunnahApiKey = keyInput.value.trim();
@@ -839,7 +839,7 @@ class FalahSettingTab extends PluginSettingTab {
 		const renderCatalog = async (force = false) => {
 			updateKeyVisibility();
 			listEl.empty();
-			status.setText("Loading catalog…");
+			status.setText(t().libraryLoadingCatalog);
 			let entries: HadithCatalogEntry[] = [];
 			try {
 				const res = await this.plugin.hadithCatalog.get(
@@ -848,7 +848,7 @@ class FalahSettingTab extends PluginSettingTab {
 					{ force }
 				);
 				entries = res.resources;
-				status.setText(res.stale ? "Showing cached catalog (offline)" : "");
+				status.setText(res.stale ? t().libraryCachedCatalogOffline : "");
 			} catch (e) {
 				status.setText(errMsg(e));
 			}
@@ -861,7 +861,7 @@ class FalahSettingTab extends PluginSettingTab {
 				const btn = row.createEl("button");
 				const idFor = () => `${entry.source}-${entry.collection}-${langSel.value}`;
 				const sync = () => {
-					btn.setText(installed.has(idFor()) ? "Remove" : "Install");
+					btn.setText(installed.has(idFor()) ? t().libraryRemoveButton : t().libraryInstallButton);
 				};
 				langSel.onchange = sync;
 				sync();
@@ -873,7 +873,7 @@ class FalahSettingTab extends PluginSettingTab {
 							await this.plugin.hadith.remove(id);
 							installed.delete(id);
 						} else {
-							btn.setText("Downloading…");
+							btn.setText(t().libraryDownloadingButton);
 							const transport = isCsv() ? this.plugin.hadithFetchText : this.plugin.fetchJson;
 							const collection = await source().fetchCollection(entry.collection, langSel.value, transport);
 							await this.plugin.hadith.install(
@@ -910,13 +910,13 @@ class FalahSettingTab extends PluginSettingTab {
 			installedWrap.createEl("h4", { text: t().setHeadingInstalledHadithCollections });
 			const descs = await this.plugin.hadith.listInstalled();
 			if (!descs.length) {
-				installedWrap.createEl("p", { text: "Nothing installed yet.", cls: "falah-muted" });
+				installedWrap.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
 				return;
 			}
 			for (const d of descs) {
 				const row = installedWrap.createDiv({ cls: "falah-hadith-row" });
-				row.createSpan({ text: `${d.name} · ${d.count ?? 0} hadith · ${d.source}` });
-				const rm = row.createEl("button", { text: "Remove" });
+				row.createSpan({ text: t().libraryInstalledHadithSummary(d.name, d.count ?? 0, d.source) });
+				const rm = row.createEl("button", { text: t().libraryRemoveButton });
 				rm.onclick = async () => {
 					rm.disabled = true;
 					try {
@@ -964,10 +964,10 @@ class FalahSettingTab extends PluginSettingTab {
 			);
 
 		if (installed && !isUpdate) {
-			setting.addExtraButton((b) => b.setIcon("checkmark").setTooltip("Installed").setDisabled(true));
+			setting.addExtraButton((b) => b.setIcon("checkmark").setTooltip(t().libraryInstalledTooltip).setDisabled(true));
 			setting.addButton((b) =>
 				b
-					.setButtonText("Remove")
+					.setButtonText(t().libraryRemoveButton)
 					.setWarning()
 					.onClick(() => void this.removeResource(desc))
 			);
@@ -975,7 +975,7 @@ class FalahSettingTab extends PluginSettingTab {
 		}
 
 		setting.addButton((b) => {
-			b.setButtonText(isUpdate ? "Update" : "Install");
+			b.setButtonText(isUpdate ? t().libraryUpdateButton : t().libraryInstallButton);
 			if (this.busy) b.setDisabled(true);
 			b.onClick(async () => {
 				if (this.busy) {
@@ -988,8 +988,8 @@ class FalahSettingTab extends PluginSettingTab {
 				this.busy = true;
 				b.setDisabled(true);
 				progressEl.empty();
-				const txt = progressEl.createSpan({ text: `${desc.name}: starting…` });
-				const cancelBtn = progressEl.createEl("button", { text: "Cancel", cls: "falah-cancel" });
+				const txt = progressEl.createSpan({ text: t().libraryDownloadStarting(desc.name) });
+				const cancelBtn = progressEl.createEl("button", { text: t().libraryCancelButton, cls: "falah-cancel" });
 				cancelBtn.addEventListener("click", () => controller.abort());
 				try {
 					// Update-in-place: downloadResource skips surahs already recorded, so
@@ -1005,7 +1005,7 @@ class FalahSettingTab extends PluginSettingTab {
 							store: this.plugin.store,
 							registry: this.plugin.registry,
 						},
-						(p) => txt.setText(`${desc.name}: ${p.surahsDone}/${p.surahsTotal} surahs`),
+						(p) => txt.setText(t().libraryDownloadProgress(desc.name, p.surahsDone, p.surahsTotal)),
 						controller.signal
 					);
 					// downloadResource returns early (not throws) on abort — detect here.
@@ -1059,7 +1059,7 @@ class FalahSettingTab extends PluginSettingTab {
 			.setName(t().setClearCacheName)
 			.setDesc(t().setClearCacheDesc)
 			.addButton((b) =>
-				b.setButtonText("Clear").onClick(() => {
+				b.setButtonText(t().libraryClearButton).onClick(() => {
 					this.plugin.cache.deletePrefix("");
 					logMessage(t().noticeCacheCleared, "info");
 				})

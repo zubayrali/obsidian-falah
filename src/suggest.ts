@@ -19,6 +19,7 @@ import { filterHadiths } from "./data/hadith/browse";
 import type { NormHadith } from "./data/hadith/schema";
 import type { BrowsableCollection } from "./data/hadith/source";
 import type FalahPlugin from "./main";
+import { t } from "./i18n";
 
 export interface Honorific {
 	insert: string;
@@ -43,16 +44,21 @@ type SlashItem =
 	| { type: "quran" | "hadith"; label: string; keywords: string }
 	| { type: "honorific"; honorific: Honorific; label: string; keywords: string };
 
-const BASE_ITEMS: SlashItem[] = [
-	{ type: "quran", label: "Quran verse…", keywords: "quran ayah verse surah" },
-	{ type: "hadith", label: "Hadith reference…", keywords: "hadith sunnah bukhari muslim" },
-	...HONORIFICS.map((h) => ({
-		type: "honorific" as const,
-		honorific: h,
-		label: h.label,
-		keywords: "honorific " + h.keywords,
-	})),
-];
+/** Built lazily (not a module-level constant) so it always reflects the current
+ *  locale — Obsidian may not have its localStorage-backed language ready yet at
+ *  module-import time. */
+function baseItems(): SlashItem[] {
+	return [
+		{ type: "quran", label: t().suggestQuranVerse, keywords: "quran ayah verse surah" },
+		{ type: "hadith", label: t().suggestHadithReference, keywords: "hadith sunnah bukhari muslim" },
+		...HONORIFICS.map((h) => ({
+			type: "honorific" as const,
+			honorific: h,
+			label: h.label,
+			keywords: "honorific " + h.keywords,
+		})),
+	];
+}
 
 export class SlashSuggest extends EditorSuggest<SlashItem> {
 	constructor(private plugin: FalahPlugin) {
@@ -72,7 +78,7 @@ export class SlashSuggest extends EditorSuggest<SlashItem> {
 
 	getSuggestions(ctx: EditorSuggestContext): SlashItem[] {
 		const q = ctx.query;
-		return BASE_ITEMS.filter(
+		return baseItems().filter(
 			(i) => !q || i.label.toLowerCase().includes(q) || i.keywords.includes(q)
 		);
 	}
@@ -101,15 +107,15 @@ export class SlashSuggest extends EditorSuggest<SlashItem> {
 export class QuranSearchModal extends SuggestModal<QuranSearchResult> {
 	constructor(private plugin: FalahPlugin, private editor: Editor) {
 		super(plugin.app);
-		this.setPlaceholder("Search Quran text, or type a reference like 2:255 or 2:255-257");
-		this.emptyStateText = "No matching verses. Try a reference like 2:255.";
+		this.setPlaceholder(t().suggestQuranSearchPlaceholder);
+		this.emptyStateText = t().suggestQuranEmptyState;
 	}
 
 	async getSuggestions(query: string): Promise<QuranSearchResult[]> {
 		const q = query.trim();
 		if (!q) return [];
 		const ref = parseShorthand(q);
-		if (ref?.kind === "quran") return [{ ref, snippet: "Insert this reference" }];
+		if (ref?.kind === "quran") return [{ ref, snippet: t().suggestInsertThisReference }];
 		if (q.length < 3) return [];
 		try {
 			return await this.plugin.liveApi.searchQuran(q);
@@ -142,12 +148,12 @@ export class HadithCollectionPickerModal extends SuggestModal<PickerItem> {
 
 	constructor(private plugin: FalahPlugin, private editor: Editor) {
 		super(plugin.app);
-		this.setPlaceholder("Pick a collection, or type a reference like bukhari:1");
+		this.setPlaceholder(t().suggestHadithCollectionPlaceholder);
 		void this.plugin.hadith.listBrowsable().then((b) => {
 			this.browsables = b;
 			this.emptyStateText = b.length
-				? "Collections: " + b.map((x) => x.collection).join(", ")
-				: "No hadith collections downloaded yet — install some in Settings.";
+				? t().suggestCollectionsList(b.map((x) => x.collection).join(", "))
+				: t().suggestNoHadithCollections;
 		});
 	}
 
@@ -166,15 +172,15 @@ export class HadithCollectionPickerModal extends SuggestModal<PickerItem> {
 
 	renderSuggestion(item: PickerItem, el: HTMLElement): void {
 		if (item.kind === "ref") {
-			el.createDiv({ cls: "falah-suggest-title", text: `Insert ${toLabel(item.ref)}` });
-			el.createDiv({ cls: "falah-suggest-snippet", text: "Type a reference" });
+			el.createDiv({ cls: "falah-suggest-title", text: t().suggestInsertRef(toLabel(item.ref)) });
+			el.createDiv({ cls: "falah-suggest-snippet", text: t().suggestTypeAReference });
 			return;
 		}
 		const b = item.browsable;
 		el.createDiv({ cls: "falah-suggest-title", text: b.name });
 		el.createDiv({
 			cls: "falah-suggest-snippet",
-			text: `${b.count} hadith · ${b.tier === "bundled" ? "bundled" : b.language}`,
+			text: t().suggestCollectionCount(b.count, b.tier === "bundled" ? t().suggestBundled : b.language),
 		});
 	}
 
@@ -197,7 +203,7 @@ export class HadithBrowseModal extends SuggestModal<NormHadith> {
 		private browsable: BrowsableCollection
 	) {
 		super(plugin.app);
-		this.setPlaceholder(`Filter ${browsable.name} by number or text…`);
+		this.setPlaceholder(t().suggestFilterCollectionPlaceholder(browsable.name));
 		this.loading = this.plugin.hadith.getCollection(browsable.id).catch((e) => {
 			logMessage(errMsg(e), "error");
 			this.close();
@@ -232,7 +238,7 @@ export class HadithBrowseModal extends SuggestModal<NormHadith> {
 export class HonorificModal extends SuggestModal<Honorific> {
 	constructor(plugin: FalahPlugin, private editor: Editor) {
 		super(plugin.app);
-		this.setPlaceholder("Insert honorific");
+		this.setPlaceholder(t().suggestInsertHonorificPlaceholder);
 	}
 
 	getSuggestions(query: string): Honorific[] {

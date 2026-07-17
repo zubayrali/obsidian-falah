@@ -24,7 +24,7 @@ export class ReferenceDetailModal extends Modal {
 		this.titleEl.setText(toLabel(this.ref));
 		this.modalEl.addClass("falah-detail-modal");
 		const body = contentEl.createDiv({ cls: "falah-detail" });
-		body.createDiv({ cls: "falah-loading", text: "Loading…" });
+		body.createDiv({ cls: "falah-loading", text: t().detailLoading });
 
 		let detail: VerseContent | HadithContent;
 		try {
@@ -49,7 +49,7 @@ export class ReferenceDetailModal extends Modal {
 		if (d.surahNameEnglish) {
 			body.createDiv({
 				cls: "falah-meta",
-				text: [d.surahNameArabic, `Surah ${d.surahNameEnglish}`].filter(Boolean).join(" · "),
+				text: [d.surahNameArabic, t().detailSurah(d.surahNameEnglish)].filter(Boolean).join(" · "),
 			});
 		}
 		const arabicEl = body.createDiv({ cls: "falah-arabic", text: d.arabic, attr: { dir: "rtl" } });
@@ -57,7 +57,7 @@ export class ReferenceDetailModal extends Modal {
 		if (d.translation) body.createDiv({ cls: "falah-translation", text: d.translation });
 		if (d.tafsir) {
 			const det = body.createEl("details", { cls: "falah-tafsir" });
-			det.createEl("summary", { text: "Tafsir" });
+			det.createEl("summary", { text: t().detailTafsir });
 			det.createDiv({
 				text: d.tafsir,
 				attr: { dir: /[؀-ۿ]/.test(d.tafsir) ? "rtl" : "ltr" },
@@ -72,25 +72,25 @@ export class ReferenceDetailModal extends Modal {
 				this.ref = { kind: "quran", surah: ref.surah, ayah };
 				void this.render();
 			};
-			const prev = nav.createEl("button", { text: "← Previous" });
+			const prev = nav.createEl("button", { text: t().detailPrevious });
 			prev.disabled = ref.ayah <= 1;
 			prev.onclick = () => go(ref.ayah - 1);
-			const next = nav.createEl("button", { text: "Next →" });
+			const next = nav.createEl("button", { text: t().detailNext });
 			next.disabled = d.ayahCount !== undefined && ref.ayah >= d.ayahCount;
 			next.onclick = () => go(ref.ayah + 1);
 		}
 
 		const readerRow = body.createDiv({ cls: "falah-open-reader-row" });
-		const openBtn = readerRow.createEl("button", { text: "Open in reader" });
+		const openBtn = readerRow.createEl("button", { text: t().detailOpenInReader });
 		openBtn.onclick = () => {
 			this.close();
 			void this.plugin.openReader(ref.surah, ref.ayah);
 		};
 
 		this.actions(body, d.externalUrl, [
-			["Copy Arabic", d.arabic],
-			["Copy translation", d.translation],
-			["Copy citation", `${d.translation ?? d.arabic} — ${toLabel(ref)} (${d.externalUrl})`],
+			[t().detailCopyArabic, d.arabic],
+			[t().detailCopyTranslation, d.translation],
+			[t().detailCopyCitation, `${d.translation ?? d.arabic} — ${toLabel(ref)} (${d.externalUrl})`],
 		]);
 	}
 
@@ -101,13 +101,13 @@ export class ReferenceDetailModal extends Modal {
 		if (d.arabic) body.createDiv({ cls: "falah-arabic", text: d.arabic, attr: { dir: "rtl" } });
 		if (d.translation) body.createDiv({ cls: "falah-translation", text: d.translation });
 		if (!d.arabic && !d.translation) {
-			body.createDiv({ cls: "falah-meta", text: "No text available from the provider." });
+			body.createDiv({ cls: "falah-meta", text: t().detailNoText });
 		}
 		this.actions(body, d.externalUrl, [
-			["Copy Arabic", d.arabic],
-			["Copy translation", d.translation],
+			[t().detailCopyArabic, d.arabic],
+			[t().detailCopyTranslation, d.translation],
 			[
-				"Copy citation",
+				t().detailCopyCitation,
 				`${d.translation ?? d.arabic ?? ""} — ${toLabel(this.ref)} (${d.externalUrl})`.trim(),
 			],
 		]);
@@ -123,7 +123,7 @@ export class ReferenceDetailModal extends Modal {
 				logMessage(t().noticeCopied, "info");
 			};
 		}
-		row.createEl("a", { text: "Open source ↗", href: url, cls: "falah-external" });
+		row.createEl("a", { text: t().detailOpenSource, href: url, cls: "falah-external" });
 	}
 
 	onClose(): void {
