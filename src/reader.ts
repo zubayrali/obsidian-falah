@@ -170,25 +170,25 @@ export class QuranReaderView extends ItemView implements VerseView {
 
 	private buildToolbar(surahs: Surah[], resources: ResourceDescriptor[]): void {
 		const strings = t();
-		const t_ = this.toolbarEl;
-		t_.empty();
+		const toolbar = this.toolbarEl;
+		toolbar.empty();
 
-		const prev = t_.createEl("button", { text: "‹", cls: "falah-reader-btn" });
+		const prev = toolbar.createEl("button", { text: "‹", cls: "falah-reader-btn" });
 		prev.disabled = this.state.surah <= 1;
 		prev.onclick = () => this.goSurah(this.state.surah - 1);
 
-		const surahSel = t_.createEl("select", { cls: "dropdown" });
+		const surahSel = toolbar.createEl("select", { cls: "dropdown" });
 		for (const s of surahs) {
 			surahSel.createEl("option", { value: String(s.number), text: strings.readerSurahOption(s.number, s.nameEnglish) });
 		}
 		surahSel.value = String(this.state.surah);
 		surahSel.onchange = () => this.goSurah(Number(surahSel.value));
 
-		const next = t_.createEl("button", { text: "›", cls: "falah-reader-btn" });
+		const next = toolbar.createEl("button", { text: "›", cls: "falah-reader-btn" });
 		next.disabled = this.state.surah >= 114;
 		next.onclick = () => this.goSurah(this.state.surah + 1);
 
-		const scriptSel = t_.createEl("select", { cls: "dropdown" });
+		const scriptSel = toolbar.createEl("select", { cls: "dropdown" });
 		scriptSel.createEl("option", { value: "uthmani", text: strings.readerScriptUthmani });
 		scriptSel.createEl("option", { value: "indopak", text: strings.readerScriptIndopak });
 		scriptSel.value = this.state.script;
@@ -198,7 +198,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.render();
 		};
 
-		const fontSel = t_.createEl("select", { cls: "dropdown" });
+		const fontSel = toolbar.createEl("select", { cls: "dropdown" });
 		const fontFams = dedupeFamilies([
 			...bundledFontsForScript(this.state.script).map((f) => f.family),
 			...this.plugin.fonts.vaultFamilies(),
@@ -212,7 +212,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const trSel = t_.createEl("select", { cls: "dropdown" });
+		const trSel = toolbar.createEl("select", { cls: "dropdown" });
 		trSel.createEl("option", { value: "", text: strings.readerNoTranslation });
 		for (const r of resources.filter((r) => r.type === "translation")) {
 			trSel.createEl("option", { value: r.id, text: r.tier === "bundled" ? strings.readerResourceDefault(r.name) : r.name });
@@ -224,7 +224,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const tfSel = t_.createEl("select", { cls: "dropdown" });
+		const tfSel = toolbar.createEl("select", { cls: "dropdown" });
 		tfSel.createEl("option", { value: "", text: strings.readerNoTafsir });
 		for (const r of resources.filter((r) => r.type === "tafsir")) {
 			tfSel.createEl("option", { value: r.id, text: r.name });
@@ -236,14 +236,14 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const dec = t_.createEl("button", { text: "A−", cls: "falah-reader-btn" });
+		const dec = toolbar.createEl("button", { text: "A−", cls: "falah-reader-btn" });
 		dec.onclick = () => this.setFont(this.state.fontSize - 2);
-		const inc = t_.createEl("button", { text: "A+", cls: "falah-reader-btn" });
+		const inc = toolbar.createEl("button", { text: "A+", cls: "falah-reader-btn" });
 		inc.onclick = () => this.setFont(this.state.fontSize + 2);
 
 		// Pop-out button only when not already in a pop-out window.
 		if (this.containerEl.ownerDocument === document) {
-			const pop = t_.createEl("button", {
+			const pop = toolbar.createEl("button", {
 				text: "⤢",
 				cls: "falah-reader-btn",
 				attr: { "aria-label": strings.readerPopOutAriaLabel },
