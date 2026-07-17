@@ -219,15 +219,15 @@ export default class FalahPlugin extends Plugin {
 		// Announce a fresh API on every load — a disable/re-enable of Falah produces a
 		// NEW api object with empty registries, so companions must know to re-register.
 		this.app.workspace.trigger(FALAH_API_READY_EVENT, this.api);
-		this.addRibbonIcon("book-open", "Open Quran reader", () => void this.openReader());
+		this.addRibbonIcon("book-open", t().ribbonOpenReader, () => void this.openReader());
 		this.addCommand({
 			id: "open-quran-reader",
-			name: "Open Quran reader",
+			name: t().cmdOpenReader,
 			callback: () => void this.openReader(),
 		});
 		this.addCommand({
 			id: "pop-out-quran-reader",
-			name: "Pop out Quran reader",
+			name: t().cmdPopOutReader,
 			callback: () => {
 				const leaf = this.findReaderLeaf();
 				if (leaf) this.app.workspace.moveLeafToPopout(leaf);
@@ -237,22 +237,22 @@ export default class FalahPlugin extends Plugin {
 
 		this.addCommand({
 			id: "insert-quran",
-			name: "Insert Quran verse",
+			name: t().cmdInsertQuran,
 			editorCallback: (editor) => new QuranSearchModal(this, editor).open(),
 		});
 		this.addCommand({
 			id: "insert-hadith",
-			name: "Insert hadith reference",
+			name: t().cmdInsertHadith,
 			editorCallback: (editor) => new HadithCollectionPickerModal(this, editor).open(),
 		});
 		this.addCommand({
 			id: "insert-honorific",
-			name: "Insert honorific",
+			name: t().cmdInsertHonorific,
 			editorCallback: (editor) => new HonorificModal(this, editor).open(),
 		});
 		this.addCommand({
 			id: "open-detail",
-			name: "Open Islamic reference detail",
+			name: t().cmdOpenDetail,
 			editorCheckCallback: (checking, editor) => {
 				const ref = this.refUnderCursor(editor);
 				if (!ref) return false;
@@ -262,7 +262,7 @@ export default class FalahPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "copy-reference-text",
-			name: "Copy reference as text",
+			name: t().cmdCopyReferenceText,
 			editorCheckCallback: (checking, editor) => {
 				const ref = this.refUnderCursor(editor);
 				if (!ref) return false;
@@ -272,7 +272,7 @@ export default class FalahPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "refresh-reference",
-			name: "Refresh Islamic reference under cursor",
+			name: t().cmdRefreshReference,
 			editorCallback: (editor) => void this.refreshAtCursor(editor),
 		});
 	}
@@ -523,7 +523,7 @@ class FalahSettingTab extends PluginSettingTab {
 	private renderCompanionZone(containerEl: HTMLElement): void {
 		if (isPluginEnabled(this.app, TADABBUR_PLUGIN_ID)) return;
 
-		containerEl.createEl("h3", { text: "Companion" });
+		containerEl.createEl("h3", { text: t().setHeadingCompanion });
 		const box = containerEl.createDiv({ cls: "falah-companion" });
 		box.createDiv({ cls: "falah-companion-title", text: "Tadabbur — reflection & journaling" });
 		box.createDiv({
@@ -543,11 +543,11 @@ class FalahSettingTab extends PluginSettingTab {
 	}
 
 	private renderDisplayZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		containerEl.createEl("h3", { text: "Display" });
+		containerEl.createEl("h3", { text: t().setHeadingDisplay });
 
 		new Setting(containerEl)
-			.setName("Arabic script")
-			.setDesc("Which script renders Quran text (both ship by default).")
+			.setName(t().setArabicScriptName)
+			.setDesc(t().setArabicScriptDesc)
 			.addDropdown((d) =>
 				d
 					.addOption("uthmani", "Uthmani")
@@ -562,8 +562,8 @@ class FalahSettingTab extends PluginSettingTab {
 		const label = (r: ResourceDescriptor) => (r.tier === "bundled" ? `${r.name} (default)` : r.name);
 
 		new Setting(containerEl)
-			.setName("Preferred translation")
-			.setDesc("Shown alongside the Arabic text.")
+			.setName(t().setPreferredTranslationName)
+			.setDesc(t().setPreferredTranslationDesc)
 			.addDropdown((d) => {
 				d.addOption("", "None");
 				for (const r of resources.filter((x) => x.type === "translation")) d.addOption(r.id, label(r));
@@ -574,8 +574,8 @@ class FalahSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Preferred tafsir")
-			.setDesc("Shown alongside the Arabic text (none ship by default).")
+			.setName(t().setPreferredTafsirName)
+			.setDesc(t().setPreferredTafsirDesc)
 			.addDropdown((d) => {
 				d.addOption("", "None");
 				for (const r of resources.filter((x) => x.type === "tafsir")) d.addOption(r.id, label(r));
@@ -585,10 +585,9 @@ class FalahSettingTab extends PluginSettingTab {
 				});
 			});
 		// --- Fonts (per script) ---
-		const scripts: { id: ArabicScript; label: string }[] = [
-			{ id: "uthmani", label: "Uthmani font" },
-			{ id: "indopak", label: "Indo-Pak font" },
-		];
+		const scripts: { id: ArabicScript }[] = [{ id: "uthmani" }, { id: "indopak" }];
+		const scriptFontName = (id: ArabicScript): string =>
+			id === "uthmani" ? t().setUthmaniFontName : t().setIndopakFontName;
 		// Extra families offered beyond the bundled set: vault fonts + any system
 		// font already chosen (so the current value stays selectable) + detected.
 		const detected: string[] = [];
@@ -604,8 +603,8 @@ class FalahSettingTab extends PluginSettingTab {
 
 		for (const s of scripts) {
 			new Setting(containerEl)
-				.setName(s.label)
-				.setDesc("Applied to this script's Arabic in the reader and detail view.")
+				.setName(scriptFontName(s.id))
+				.setDesc(t().setScriptFontDesc)
 				.addDropdown((d) => {
 					for (const fam of fontOptions(s.id)) d.addOption(fam, fam);
 					d.setValue(this.plugin.settings.fontByScript[s.id]).onChange(async (v) => {
@@ -626,10 +625,8 @@ class FalahSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(containerEl)
-			.setName("Font sources")
-			.setDesc(
-				`Detect installed fonts (desktop), or drop .ttf/.woff2 files into ${this.plugin.manifest.dir ?? ""}/fonts and reload.`
-			)
+			.setName(t().setFontSourcesName)
+			.setDesc(t().setFontSourcesDesc(this.plugin.manifest.dir ?? ""))
 			.addButton((b) =>
 				b.setButtonText("Detect installed fonts").onClick(async () => {
 					try {
@@ -657,11 +654,11 @@ class FalahSettingTab extends PluginSettingTab {
 	}
 
 	private renderLibraryZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		containerEl.createEl("h3", { text: "Library" });
+		containerEl.createEl("h3", { text: t().setHeadingLibrary });
 		const installedIds = new Set(resources.map((r) => r.id));
 
 		// --- Browse & install ---
-		containerEl.createEl("h4", { text: "Browse & install" });
+		containerEl.createEl("h4", { text: t().setHeadingBrowseInstall });
 
 		const bar = containerEl.createDiv({ cls: "falah-filter-bar" });
 		const searchInput = bar.createEl("input", { type: "search", cls: "falah-search" });
@@ -763,7 +760,7 @@ class FalahSettingTab extends PluginSettingTab {
 		else void fetchCatalog(false);
 
 		// --- Installed resources ---
-		containerEl.createEl("h4", { text: "Installed resources" });
+		containerEl.createEl("h4", { text: t().setHeadingInstalledResources });
 		const installed = resources.filter((x) => x.tier !== "bundled");
 		if (!installed.length) containerEl.createEl("p", { text: "Nothing installed yet.", cls: "falah-muted" });
 		for (const r of installed) {
@@ -779,10 +776,10 @@ class FalahSettingTab extends PluginSettingTab {
 		}
 
 		// --- Manual import ---
-		containerEl.createEl("h4", { text: "Manual import" });
+		containerEl.createEl("h4", { text: t().setHeadingManualImport });
 		new Setting(containerEl)
-			.setName("Scan imports folder")
-			.setDesc("Reads JSON packs dropped into the plugin's imports/ folder.")
+			.setName(t().setScanImportsName)
+			.setDesc(t().setScanImportsDesc)
 			.addButton((b) =>
 				b.setButtonText("Scan").onClick(async () => {
 					if (this.busy) {
@@ -813,7 +810,7 @@ class FalahSettingTab extends PluginSettingTab {
 	}
 
 	private renderHadithLibrary(containerEl: HTMLElement): void {
-		containerEl.createEl("h3", { text: "Hadith collections" });
+		containerEl.createEl("h3", { text: t().setHeadingHadithCollections });
 		const hadithBox = containerEl.createDiv({ cls: "falah-hadith-library" });
 
 		const sourceSel = hadithBox.createEl("select", { cls: "dropdown" });
@@ -910,7 +907,7 @@ class FalahSettingTab extends PluginSettingTab {
 		const installedWrap = hadithBox.createDiv({ cls: "falah-hadith-installed" });
 		const renderInstalled = async () => {
 			installedWrap.empty();
-			installedWrap.createEl("h4", { text: "Installed hadith collections" });
+			installedWrap.createEl("h4", { text: t().setHeadingInstalledHadithCollections });
 			const descs = await this.plugin.hadith.listInstalled();
 			if (!descs.length) {
 				installedWrap.createEl("p", { text: "Nothing installed yet.", cls: "falah-muted" });
@@ -1033,13 +1030,11 @@ class FalahSettingTab extends PluginSettingTab {
 
 	private renderAdvancedZone(containerEl: HTMLElement): void {
 		const details = containerEl.createEl("details", { cls: "falah-advanced" });
-		details.createEl("summary", { text: "Advanced" });
+		details.createEl("summary", { text: t().setHeadingAdvanced });
 
 		new Setting(details)
-			.setName("Online fallback translation edition")
-			.setDesc(
-				"AlQuran.cloud edition used only when a reference isn't available locally, e.g. en.sahih, fr.hamidullah."
-			)
+			.setName(t().setOnlineFallbackTranslationName)
+			.setDesc(t().setOnlineFallbackTranslationDesc)
 			.addText((t) =>
 				t
 					.setPlaceholder(DEFAULT_SETTINGS.translationEdition)
@@ -1051,8 +1046,8 @@ class FalahSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(details)
-			.setName("Online fallback tafsir edition")
-			.setDesc("Optional AlQuran.cloud tafsir edition for the online fallback, e.g. ar.muyassar.")
+			.setName(t().setOnlineFallbackTafsirName)
+			.setDesc(t().setOnlineFallbackTafsirDesc)
 			.addText((t) =>
 				t.setValue(this.plugin.settings.tafsirEdition).onChange(async (v) => {
 					this.plugin.settings.tafsirEdition = v.trim();
@@ -1061,8 +1056,8 @@ class FalahSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(details)
-			.setName("Clear content cache")
-			.setDesc("Removes cached online-fallback responses. Downloaded/default resources are unaffected.")
+			.setName(t().setClearCacheName)
+			.setDesc(t().setClearCacheDesc)
 			.addButton((b) =>
 				b.setButtonText("Clear").onClick(() => {
 					this.plugin.cache.deletePrefix("");
