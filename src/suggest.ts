@@ -7,7 +7,6 @@ import {
 	EditorSuggest,
 	EditorSuggestContext,
 	EditorSuggestTriggerInfo,
-	Notice,
 	SuggestModal,
 	TFile,
 } from "obsidian";
@@ -15,6 +14,7 @@ import { parseShorthand, toLabel } from "./ref";
 import type { HadithRef } from "./ref";
 import type { QuranSearchResult } from "./providers";
 import { errMsg } from "./providers";
+import { logMessage } from "./log";
 import { filterHadiths } from "./data/hadith/browse";
 import type { NormHadith } from "./data/hadith/schema";
 import type { BrowsableCollection } from "./data/hadith/source";
@@ -199,7 +199,7 @@ export class HadithBrowseModal extends SuggestModal<NormHadith> {
 		super(plugin.app);
 		this.setPlaceholder(`Filter ${browsable.name} by number or text…`);
 		this.loading = this.plugin.hadith.getCollection(browsable.id).catch((e) => {
-			new Notice(errMsg(e));
+			logMessage(errMsg(e), "error");
 			this.close();
 			return { hadiths: [] };
 		});

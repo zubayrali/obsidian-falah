@@ -1,11 +1,13 @@
 // Native detail surface — the Obsidian equivalent of Qirtaas' VerseDetailPanel /
 // HadithDetailPanel: Arabic, translation, tafsir, navigation, copy actions, source link.
 
-import { Modal, Notice } from "obsidian";
+import { Modal } from "obsidian";
 import type FalahPlugin from "./main";
 import { IslamicReference, QuranRef, toLabel } from "./ref";
 import type { HadithContent, VerseContent } from "./data/schema";
 import { errMsg, hadithExternalUrl, quranExternalUrl } from "./providers";
+import { logMessage } from "./log";
+import { t } from "./i18n";
 
 export class ReferenceDetailModal extends Modal {
 	constructor(private plugin: FalahPlugin, private ref: IslamicReference) {
@@ -118,7 +120,7 @@ export class ReferenceDetailModal extends Modal {
 			const b = row.createEl("button", { text: label });
 			b.onclick = async () => {
 				await navigator.clipboard.writeText(text);
-				new Notice("Copied");
+				logMessage(t().noticeCopied, "info");
 			};
 		}
 		row.createEl("a", { text: "Open source ↗", href: url, cls: "falah-external" });

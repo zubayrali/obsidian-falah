@@ -1,7 +1,7 @@
 // Plugin shell: settings, providers, cache, commands, and registration of the
 // slash suggest, Live Preview decorations, and Reading mode post-processor.
 
-import { Editor, Notice, Plugin, PluginSettingTab, Setting, requestUrl } from "obsidian";
+import { Editor, Plugin, PluginSettingTab, Setting, requestUrl } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import {
 	IslamicReference,
@@ -14,6 +14,8 @@ import {
 	toUri,
 } from "./ref";
 import { AlQuranCloudProvider, HadithCdnProvider, errMsg } from "./providers";
+import { logMessage } from "./log";
+import { t } from "./i18n";
 import { HadithCollectionPickerModal, HonorificModal, QuranSearchModal, SlashSuggest } from "./suggest";
 import { livePreviewChips } from "./decorations";
 import { falahPostProcessor } from "./postprocess";
@@ -229,7 +231,7 @@ export default class FalahPlugin extends Plugin {
 			callback: () => {
 				const leaf = this.findReaderLeaf();
 				if (leaf) this.app.workspace.moveLeafToPopout(leaf);
-				else new Notice("Open the Quran reader first");
+				else logMessage(t().noticeOpenReaderFirst, "warn");
 			},
 		});
 
@@ -291,7 +293,7 @@ export default class FalahPlugin extends Plugin {
 	openDetailFromUri(uri: string): void {
 		const ref = parseRefUri(uri);
 		if (ref) this.openDetail(ref);
-		else new Notice("Unsupported Falah reference: " + uri);
+		else logMessage(t().noticeUnsupportedReference(uri), "warn");
 	}
 
 	/** Open (or focus) the single Quran Reader at a surah/ayah, navigating an
@@ -381,7 +383,7 @@ export default class FalahPlugin extends Plugin {
 		try {
 			text = this.renderedText(await this.getDetail(ref));
 		} catch (e) {
-			new Notice(`Inserted reference without text: ${errMsg(e)}`);
+			logMessage(t().noticeInsertedWithoutText(errMsg(e)), "warn");
 		}
 		editor.replaceRange(toCallout(ref, text) + "\n", cursor);
 	}
@@ -396,12 +398,12 @@ export default class FalahPlugin extends Plugin {
 
 	private async copyReferenceText(ref: IslamicReference): Promise<void> {
 		try {
-			const t = this.renderedText(await this.getDetail(ref));
-			const parts = [toLabel(ref), t.arabic, t.translation].filter(Boolean) as string[];
+			const rendered = this.renderedText(await this.getDetail(ref));
+			const parts = [toLabel(ref), rendered.arabic, rendered.translation].filter(Boolean) as string[];
 			await navigator.clipboard.writeText(parts.join("\n\n"));
-			new Notice("Reference text copied");
+			logMessage(t().noticeReferenceTextCopied, "info");
 		} catch (e) {
-			new Notice(errMsg(e));
+			logMessage(errMsg(e), "error");
 		}
 	}
 
@@ -429,9 +431,9 @@ export default class FalahPlugin extends Plugin {
 						{ line: start, ch: 0 },
 						{ line: end, ch: editor.getLine(end).length }
 					);
-					new Notice(`${toLabel(ref)} refreshed`);
+					logMessage(t().noticeRefreshed(toLabel(ref)), "info");
 				} catch (e) {
-					new Notice(errMsg(e));
+					logMessage(errMsg(e), "error");
 				}
 				return;
 			}
@@ -439,15 +441,15 @@ export default class FalahPlugin extends Plugin {
 
 		const ref = this.refUnderCursor(editor);
 		if (!ref) {
-			new Notice("No Islamic reference under cursor");
+			logMessage(t().noticeNoReferenceUnderCursor, "warn");
 			return;
 		}
 		this.cache.deletePrefix(toUri(ref) + "|");
 		try {
 			await this.getDetail(ref);
-			new Notice(`${toLabel(ref)} cache refreshed`);
+			logMessage(t().noticeCacheRefreshed(toLabel(ref)), "info");
 		} catch (e) {
-			new Notice(errMsg(e));
+			logMessage(errMsg(e), "error");
 		}
 	}
 }
@@ -501,7 +503,7 @@ class FalahSettingTab extends PluginSettingTab {
 			// listResources() is withStorageBoundary-wrapped and can throw a typed
 			// DataError. render() runs detached (`void this.render()`), so degrade to
 			// an error state rather than leaking an unhandled rejection.
-			new Notice(errMsg(e));
+			logMessage(errMsg(e), "error");
 			containerEl.createEl("p", {
 				text: `Couldn't load installed resources: ${errMsg(e)}`,
 				cls: "falah-settings-error",
@@ -633,21 +635,21 @@ class FalahSettingTab extends PluginSettingTab {
 					try {
 						const fams = await enumerateSystemFonts();
 						if (!fams.length) {
-							new Notice("Font detection unavailable here — type the font name instead.");
+							logMessage(t().noticeFontDetectionUnavailable, "warn");
 							return;
 						}
 						detected.push(...fams);
-						new Notice(`Detected ${fams.length} fonts.`);
+						logMessage(t().noticeFontsDetected(fams.length), "info");
 						await this.render();
 					} catch {
-						new Notice("Couldn't access system fonts (permission denied or unsupported).");
+						logMessage(t().noticeFontAccessDenied, "warn");
 					}
 				})
 			)
 			.addButton((b) =>
 				b.setButtonText("Reload vault fonts").onClick(async () => {
 					await this.plugin.fonts.reload();
-					new Notice("Reloaded fonts.");
+					logMessage(t().noticeFontsReloaded, "info");
 					this.plugin.refreshReader();
 					await this.render();
 				})
@@ -728,7 +730,7 @@ class FalahSettingTab extends PluginSettingTab {
 				this.browse.updateIds = new Set(await this.plugin.registry.updatesAvailable(catalog));
 			} catch (e) {
 				this.browse.catalog = [];
-				new Notice(errMsg(e));
+				logMessage(errMsg(e), "error");
 			} finally {
 				this.browse.loading = false;
 				rebuildLangOptions();
@@ -784,7 +786,7 @@ class FalahSettingTab extends PluginSettingTab {
 			.addButton((b) =>
 				b.setButtonText("Scan").onClick(async () => {
 					if (this.busy) {
-						new Notice("A download or import is already in progress");
+						logMessage(t().noticeDownloadOrImportInProgress, "warn");
 						return;
 					}
 					this.busy = true;
@@ -795,14 +797,11 @@ class FalahSettingTab extends PluginSettingTab {
 							store: this.plugin.store,
 							registry: this.plugin.registry,
 						});
-						new Notice(
-							`Imported ${result.ok.length} resource(s)` +
-								(result.failed.length ? `; failed: ${result.failed.join(", ")}` : "")
-						);
+						logMessage(t().noticeImportedResources(result.ok.length, result.failed), "info");
 						this.plugin.refreshReader();
 						await this.render();
 					} catch (e) {
-						new Notice(errMsg(e));
+						logMessage(errMsg(e), "error");
 					} finally {
 						this.busy = false;
 						b.setDisabled(false);
@@ -926,7 +925,7 @@ class FalahSettingTab extends PluginSettingTab {
 					try {
 						await this.plugin.hadith.remove(d.id);
 					} catch (e) {
-						new Notice(errMsg(e));
+						logMessage(errMsg(e), "error");
 					}
 					await this.render();
 				};
@@ -937,17 +936,17 @@ class FalahSettingTab extends PluginSettingTab {
 
 	private async removeResource(r: ResourceDescriptor): Promise<void> {
 		if (this.busy) {
-			new Notice("Another resource operation is in progress");
+			logMessage(t().noticeResourceOperationInProgress, "warn");
 			return;
 		}
 		this.busy = true;
 		try {
 			await this.plugin.registry.removeResource(r.id, categoryForType(r.type));
-			new Notice(`Removed ${r.name}`);
+			logMessage(t().noticeRemoved(r.name), "info");
 			this.plugin.refreshReader();
 			await this.render();
 		} catch (e) {
-			new Notice(errMsg(e));
+			logMessage(errMsg(e), "error");
 		} finally {
 			this.busy = false;
 		}
@@ -983,7 +982,7 @@ class FalahSettingTab extends PluginSettingTab {
 			if (this.busy) b.setDisabled(true);
 			b.onClick(async () => {
 				if (this.busy) {
-					new Notice("A download or import is already in progress");
+					logMessage(t().noticeDownloadOrImportInProgress, "warn");
 					return;
 				}
 				const source = this.plugin.downloadSources[this.browse.source];
@@ -1018,7 +1017,7 @@ class FalahSettingTab extends PluginSettingTab {
 					// `this.busy` at construction time).
 					this.busy = false;
 					this.activeDownload = undefined;
-					new Notice(cancelled ? "Download cancelled" : `${desc.name} installed`);
+					logMessage(cancelled ? t().noticeDownloadCancelled : t().noticeInstalled(desc.name), "info");
 					if (!cancelled) this.plugin.refreshReader();
 					await this.render();
 				} catch (e) {
@@ -1026,7 +1025,7 @@ class FalahSettingTab extends PluginSettingTab {
 					this.activeDownload = undefined;
 					progressEl.empty();
 					b.setDisabled(false);
-					new Notice(`Download failed: ${errMsg(e)}`);
+					logMessage(t().noticeDownloadFailed(errMsg(e)), "error");
 				}
 			});
 		});
@@ -1067,7 +1066,7 @@ class FalahSettingTab extends PluginSettingTab {
 			.addButton((b) =>
 				b.setButtonText("Clear").onClick(() => {
 					this.plugin.cache.deletePrefix("");
-					new Notice("Falah cache cleared");
+					logMessage(t().noticeCacheCleared, "info");
 				})
 			);
 	}
