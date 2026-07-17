@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildStrings, resolveBundle } from "./index";
 import { en } from "./en";
+import { ar } from "./ar";
 
 describe("resolveBundle", () => {
 	const ar = { pluginName: "فلاح" };
@@ -31,5 +32,15 @@ describe("buildStrings", () => {
 		for (const k of Object.keys(en) as (keyof typeof en)[]) {
 			if (k !== "pluginName") expect(s[k]).toBe(en[k]);
 		}
+	});
+});
+
+describe("real ar bundle", () => {
+	it("an Arabic reader gets Arabic where we have it and English everywhere else", () => {
+		const s = buildStrings("ar");
+		expect(s.pluginName).toBe(ar.pluginName);
+		const untranslated = (Object.keys(en) as (keyof typeof en)[]).filter((k) => !(k in ar));
+		expect(untranslated.length).toBeGreaterThan(0); // the point: a partial bundle
+		for (const k of untranslated) expect(s[k]).toBe(en[k]);
 	});
 });

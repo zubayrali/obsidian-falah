@@ -1,8 +1,9 @@
 import { en, type Strings } from "./en";
+import { ar } from "./ar";
 
 /** Registered locale bundles. Add one file per locale and register it here;
  *  each is Partial<Strings>, so a half-finished translation is fine. */
-const BUNDLES: Record<string, Partial<Strings>> = {};
+const BUNDLES: Record<string, Partial<Strings>> = { ar };
 
 /** Exact locale, else its base language, else nothing. `pt-BR` → `pt-br` → `pt`. */
 export function resolveBundle(
