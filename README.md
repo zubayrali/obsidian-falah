@@ -4,7 +4,7 @@ Quran and Hadith references, native to your Markdown notes. Clickable `falah://`
 
 ## What it does
 
-- **`falah://` references.** Cite a verse or hadith anywhere in your vault (`falah://quran/2:255`, `falah://hadith/bukhari/1`) and it renders as a clickable, hoverable link. Click through to the reader; hover for a preview.
+- **`falah://` references.** Cite a verse or hadith anywhere in your vault (`falah://quran/2/255`, `falah://hadith/bukhari/1`) and it renders as a clickable chip. Click it to open the reference in a detail view, with a jump into the full reader from there. You rarely write these by hand — `/quran` and `/hadith` generate them for you.
 - **Quran reader.** A dedicated reading view with Uthmani or IndoPak script, your choice of translation and tafsir, and adjustable fonts — pop it out into its own window if you like.
 - **Slash-command lookup.** Type `/quran` or `/hadith` mid-sentence to search and insert a reference without leaving your note. `/` also completes honorific glyphs (ﷺ, ﷻ, رضي الله عنه, and others) by typing their transliteration.
 - **Commands** for opening/popping out the reader, inserting a verse or hadith reference, inserting an honorific, opening the full detail view for the reference under your cursor, copying a reference as plain text, and refreshing a reference's cached text.
