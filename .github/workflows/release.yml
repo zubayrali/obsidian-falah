@@ -15,6 +15,15 @@ jobs:
         steps:
             - uses: actions/checkout@v6
 
+            - name: Verify tag matches manifest version
+              run: |
+                  tag="${GITHUB_REF#refs/tags/}"
+                  version=$(jq -r .version manifest.json)
+                  if [ "$tag" != "$version" ]; then
+                    echo "Tag '$tag' must match manifest.json version '$version' (no 'v' prefix) - Obsidian's release bot requires an exact match."
+                    exit 1
+                  fi
+
             - name: Use Node.js
               uses: actions/setup-node@v6
               with:
