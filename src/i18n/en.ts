@@ -94,6 +94,7 @@ export const en = {
 	readerNoTranslation: "No translation",
 	readerNoTafsir: "No tafsir",
 	readerPopOutAriaLabel: "Pop out",
+	readerToggleToolbarAriaLabel: "Toggle toolbar",
 	readerLoading: "Loading…",
 	readerVerseActions: "Verse actions",
 	readerRemoveTafsirAriaLabel: "Remove tafsir",

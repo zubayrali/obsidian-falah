@@ -257,6 +257,19 @@ settings:
 	background: var(--background-primary);
 	z-index: 1;
 }
+.falah-reader-toolbar-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	flex: 1;
+}
+.falah-reader-toolbar.falah-reader-toolbar-collapsed .falah-reader-toolbar-controls {
+	display: none;
+}
+.falah-reader-toolbar-collapse-btn {
+	margin-left: auto;
+}
 .falah-reader-btn {
 	padding: 2px 8px;
 }

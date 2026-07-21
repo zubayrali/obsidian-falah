@@ -28,6 +28,9 @@ interface ReaderState {
 	translationId: string;
 	tafsirId: string;
 	fontSize: number;
+	/** Focus mode: collapses the toolbar to a thin handle. Manual toggle only —
+	 *  never auto-hidden by scroll or hover. */
+	toolbarCollapsed?: boolean;
 }
 
 export class QuranReaderView extends ItemView implements VerseView {
@@ -172,8 +175,11 @@ export class QuranReaderView extends ItemView implements VerseView {
 		const strings = t();
 		const toolbar = this.toolbarEl;
 		toolbar.empty();
+		toolbar.toggleClass("falah-reader-toolbar-collapsed", !!this.state.toolbarCollapsed);
 
-		const navGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const controls = toolbar.createDiv({ cls: "falah-reader-toolbar-controls" });
+
+		const navGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
 		const prev = navGroup.createEl("button", { text: "‹", cls: "falah-reader-btn" });
 		prev.disabled = this.state.surah <= 1;
 		prev.onclick = () => this.goSurah(this.state.surah - 1);
@@ -189,7 +195,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 		next.disabled = this.state.surah >= 114;
 		next.onclick = () => this.goSurah(this.state.surah + 1);
 
-		const scriptFontGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const scriptFontGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
 		const scriptWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-script" });
 		const scriptSel = scriptWrap.createEl("select", { cls: "dropdown" });
 		scriptSel.createEl("option", { value: "uthmani", text: strings.readerScriptUthmani });
@@ -216,7 +222,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const trTfGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const trTfGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
 		const trSel = trTfGroup.createEl("select", { cls: "dropdown" });
 		trSel.createEl("option", { value: "", text: strings.readerNoTranslation });
 		for (const r of resources.filter((r) => r.type === "translation")) {
@@ -242,14 +248,14 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const sizeGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const sizeGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
 		const sizeWrap = sizeGroup.createDiv({ cls: "falah-reader-toolbar-size" });
 		const dec = sizeWrap.createEl("button", { text: "A−", cls: "falah-reader-btn" });
 		dec.onclick = () => this.setFont(this.state.fontSize - 2);
 		const inc = sizeWrap.createEl("button", { text: "A+", cls: "falah-reader-btn" });
 		inc.onclick = () => this.setFont(this.state.fontSize + 2);
 
-		const endGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const endGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
 		// Pop-out button only when not already in a pop-out window.
 		if (this.containerEl.ownerDocument === document) {
 			const popWrap = endGroup.createDiv({ cls: "falah-reader-toolbar-popout" });
@@ -260,6 +266,18 @@ export class QuranReaderView extends ItemView implements VerseView {
 			});
 			pop.onclick = () => this.plugin.app.workspace.moveLeafToPopout(this.leaf);
 		}
+
+		// Always visible (outside `controls`) so it survives its own collapsed state.
+		const collapseBtn = toolbar.createEl("button", {
+			text: this.state.toolbarCollapsed ? "︾" : "︿",
+			cls: "falah-reader-btn falah-reader-toolbar-collapse-btn",
+			attr: { "aria-label": strings.readerToggleToolbarAriaLabel },
+		});
+		collapseBtn.onclick = () => {
+			this.state.toolbarCollapsed = !this.state.toolbarCollapsed;
+			this.persistState();
+			this.buildToolbar(surahs, resources);
+		};
 	}
 
 	private goSurah(n: number): void {
