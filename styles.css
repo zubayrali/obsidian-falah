@@ -56,6 +56,45 @@ settings:
         id: falah-hide-popout
         title: Hide pop-out button
         type: class-toggle
+    -
+        id: falah-reader-tafsir-heading
+        title: Tafsir blocks
+        type: heading
+        level: 1
+        collapsed: true
+    -
+        id: falah-reader-tafsir-color
+        title: Tafsir text color
+        type: variable-themed-color
+        format: hex
+        # same caveat as the ayah-counter-color setting above: literal hex sampled
+        # from --text-muted; CSS fallback stays var(--text-muted).
+        default-light: '#6e6e6e'
+        default-dark: '#a3a3a3'
+    -
+        id: falah-reader-bismillah-heading
+        title: Bismillah & header
+        type: heading
+        level: 1
+        collapsed: true
+    -
+        id: falah-reader-bismillah-size
+        title: Bismillah font size (em)
+        type: variable-number-slider
+        default: 1.4
+        min: 1
+        max: 2.4
+        step: 0.1
+        format: em
+    -
+        id: falah-reader-title-size
+        title: Surah title font size (em)
+        type: variable-number-slider
+        default: 1.3
+        min: 1
+        max: 2
+        step: 0.1
+        format: em
 */
 
 /* Reference chips (Live Preview + Reading mode) */
@@ -315,7 +354,7 @@ body.falah-hide-popout .falah-reader-toolbar-popout {
 	margin: 8px 0 4px;
 }
 .falah-reader-title {
-	font-size: 1.3em;
+	font-size: var(--falah-reader-title-size, 1.3em);
 	font-weight: 700;
 }
 .falah-reader-subtitle {
@@ -323,7 +362,7 @@ body.falah-hide-popout .falah-reader-toolbar-popout {
 }
 .falah-reader-bismillah {
 	text-align: center;
-	font-size: 1.4em;
+	font-size: var(--falah-reader-bismillah-size, 1.4em);
 	margin: 12px 0 20px;
 }
 .falah-reader-ayah {
@@ -348,7 +387,7 @@ body.falah-hide-popout .falah-reader-toolbar-popout {
 }
 .falah-reader-tafsir {
 	margin-top: 8px;
-	color: var(--text-muted);
+	color: var(--falah-reader-tafsir-color, var(--text-muted));
 }
 .falah-reader-tafsir > summary {
 	cursor: pointer;
