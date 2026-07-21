@@ -195,7 +195,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 		next.disabled = this.state.surah >= 114;
 		next.onclick = () => this.goSurah(this.state.surah + 1);
 
-		const scriptFontGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
+		const scriptFontGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-cluster-script-font" });
 		const scriptWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-script" });
 		const scriptSel = scriptWrap.createEl("select", { cls: "dropdown" });
 		scriptSel.createEl("option", { value: "uthmani", text: strings.readerScriptUthmani });
@@ -248,7 +248,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const sizeGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
+		const sizeGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-cluster-size" });
 		const sizeWrap = sizeGroup.createDiv({ cls: "falah-reader-toolbar-size" });
 		const dec = sizeWrap.createEl("button", { text: "A−", cls: "falah-reader-btn" });
 		dec.onclick = () => this.setFont(this.state.fontSize - 2);
@@ -271,7 +271,10 @@ export class QuranReaderView extends ItemView implements VerseView {
 		const collapseBtn = toolbar.createEl("button", {
 			text: this.state.toolbarCollapsed ? "︾" : "︿",
 			cls: "falah-reader-btn falah-reader-toolbar-collapse-btn",
-			attr: { "aria-label": strings.readerToggleToolbarAriaLabel },
+			attr: {
+				"aria-label": strings.readerToggleToolbarAriaLabel,
+				"aria-pressed": String(!!this.state.toolbarCollapsed),
+			},
 		});
 		collapseBtn.onclick = () => {
 			this.state.toolbarCollapsed = !this.state.toolbarCollapsed;
