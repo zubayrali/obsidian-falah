@@ -173,22 +173,25 @@ export class QuranReaderView extends ItemView implements VerseView {
 		const toolbar = this.toolbarEl;
 		toolbar.empty();
 
-		const prev = toolbar.createEl("button", { text: "‹", cls: "falah-reader-btn" });
+		const navGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const prev = navGroup.createEl("button", { text: "‹", cls: "falah-reader-btn" });
 		prev.disabled = this.state.surah <= 1;
 		prev.onclick = () => this.goSurah(this.state.surah - 1);
 
-		const surahSel = toolbar.createEl("select", { cls: "dropdown" });
+		const surahSel = navGroup.createEl("select", { cls: "dropdown" });
 		for (const s of surahs) {
 			surahSel.createEl("option", { value: String(s.number), text: strings.readerSurahOption(s.number, s.nameEnglish) });
 		}
 		surahSel.value = String(this.state.surah);
 		surahSel.onchange = () => this.goSurah(Number(surahSel.value));
 
-		const next = toolbar.createEl("button", { text: "›", cls: "falah-reader-btn" });
+		const next = navGroup.createEl("button", { text: "›", cls: "falah-reader-btn" });
 		next.disabled = this.state.surah >= 114;
 		next.onclick = () => this.goSurah(this.state.surah + 1);
 
-		const scriptSel = toolbar.createEl("select", { cls: "dropdown" });
+		const scriptFontGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const scriptWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-script" });
+		const scriptSel = scriptWrap.createEl("select", { cls: "dropdown" });
 		scriptSel.createEl("option", { value: "uthmani", text: strings.readerScriptUthmani });
 		scriptSel.createEl("option", { value: "indopak", text: strings.readerScriptIndopak });
 		scriptSel.value = this.state.script;
@@ -198,7 +201,8 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.render();
 		};
 
-		const fontSel = toolbar.createEl("select", { cls: "dropdown" });
+		const fontWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-font" });
+		const fontSel = fontWrap.createEl("select", { cls: "dropdown" });
 		const fontFams = dedupeFamilies([
 			...bundledFontsForScript(this.state.script).map((f) => f.family),
 			...this.plugin.fonts.vaultFamilies(),
@@ -212,7 +216,8 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const trSel = toolbar.createEl("select", { cls: "dropdown" });
+		const trTfGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const trSel = trTfGroup.createEl("select", { cls: "dropdown" });
 		trSel.createEl("option", { value: "", text: strings.readerNoTranslation });
 		for (const r of resources.filter((r) => r.type === "translation")) {
 			trSel.createEl("option", { value: r.id, text: r.tier === "bundled" ? strings.readerResourceDefault(r.name) : r.name });
@@ -224,7 +229,8 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const tfSel = toolbar.createEl("select", { cls: "dropdown" });
+		const tfWrap = trTfGroup.createDiv({ cls: "falah-reader-toolbar-tafsir" });
+		const tfSel = tfWrap.createEl("select", { cls: "dropdown" });
 		tfSel.createEl("option", { value: "", text: strings.readerNoTafsir });
 		for (const r of resources.filter((r) => r.type === "tafsir")) {
 			tfSel.createEl("option", { value: r.id, text: r.name });
@@ -236,14 +242,18 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.renderBody();
 		};
 
-		const dec = toolbar.createEl("button", { text: "A−", cls: "falah-reader-btn" });
+		const sizeGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
+		const sizeWrap = sizeGroup.createDiv({ cls: "falah-reader-toolbar-size" });
+		const dec = sizeWrap.createEl("button", { text: "A−", cls: "falah-reader-btn" });
 		dec.onclick = () => this.setFont(this.state.fontSize - 2);
-		const inc = toolbar.createEl("button", { text: "A+", cls: "falah-reader-btn" });
+		const inc = sizeWrap.createEl("button", { text: "A+", cls: "falah-reader-btn" });
 		inc.onclick = () => this.setFont(this.state.fontSize + 2);
 
+		const endGroup = toolbar.createDiv({ cls: "falah-reader-toolbar-group" });
 		// Pop-out button only when not already in a pop-out window.
 		if (this.containerEl.ownerDocument === document) {
-			const pop = toolbar.createEl("button", {
+			const popWrap = endGroup.createDiv({ cls: "falah-reader-toolbar-popout" });
+			const pop = popWrap.createEl("button", {
 				text: "⤢",
 				cls: "falah-reader-btn",
 				attr: { "aria-label": strings.readerPopOutAriaLabel },

@@ -30,6 +30,32 @@ settings:
         # theme until they explicitly touch this setting.
         default-light: '#7c3aed'
         default-dark: '#7f6df2'
+    -
+        id: falah-reader-toolbar-heading
+        title: Toolbar
+        type: heading
+        level: 1
+        collapsed: true
+    -
+        id: falah-hide-script-picker
+        title: Hide script picker
+        type: class-toggle
+    -
+        id: falah-hide-font-picker
+        title: Hide font picker
+        type: class-toggle
+    -
+        id: falah-hide-tafsir-picker
+        title: Hide tafsir picker
+        type: class-toggle
+    -
+        id: falah-hide-size-buttons
+        title: Hide text-size buttons
+        type: class-toggle
+    -
+        id: falah-hide-popout
+        title: Hide pop-out button
+        type: class-toggle
 */
 
 /* Reference chips (Live Preview + Reading mode) */
@@ -233,6 +259,34 @@ settings:
 }
 .falah-reader-btn {
 	padding: 2px 8px;
+}
+.falah-reader-toolbar-group {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding-right: 10px;
+	margin-right: 4px;
+	border-right: 1px solid var(--background-modifier-border);
+}
+.falah-reader-toolbar-group:last-child {
+	border-right: none;
+	padding-right: 0;
+	margin-right: 0;
+}
+body.falah-hide-script-picker .falah-reader-toolbar-script {
+	display: none;
+}
+body.falah-hide-font-picker .falah-reader-toolbar-font {
+	display: none;
+}
+body.falah-hide-tafsir-picker .falah-reader-toolbar-tafsir {
+	display: none;
+}
+body.falah-hide-size-buttons .falah-reader-toolbar-size {
+	display: none;
+}
+body.falah-hide-popout .falah-reader-toolbar-popout {
+	display: none;
 }
 .falah-reader-body {
 	flex: 1;
