@@ -708,6 +708,7 @@ class FalahSettingTab extends PluginSettingTab {
 		}
 
 		this.renderDisplayZone(containerEl, resources);
+		this.renderReaderZone(containerEl);
 		this.renderLibraryZone(containerEl, resources);
 		this.renderCompanionZone(containerEl);
 		this.renderAdvancedZone(containerEl);
@@ -844,6 +845,117 @@ class FalahSettingTab extends PluginSettingTab {
 					await this.render();
 				})
 			);
+	}
+
+	private renderReaderZone(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName(t().setHeadingReader).setHeading();
+
+		new Setting(containerEl)
+			.setName(t().setReaderMaxWidthName)
+			.setDesc(t().setReaderMaxWidthDesc)
+			.addSlider((s) =>
+				s
+					.setLimits(480, 1200, 20)
+					.setValue(this.plugin.settings.readerMaxWidth)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						this.plugin.settings.readerMaxWidth = v;
+						await this.plugin.persist();
+						this.plugin.applyReaderTheme();
+					})
+			);
+
+		const themedColor = (
+			name: string,
+			desc: string,
+			key: "readerAyahNumColor" | "readerTafsirColor",
+			themeVar: string
+		) => {
+			new Setting(containerEl)
+				.setName(name)
+				.setDesc(desc)
+				.addColorPicker((c) => {
+					const current =
+						this.plugin.settings[key] || getComputedStyle(document.body).getPropertyValue(themeVar).trim();
+					c.setValue(current).onChange(async (v) => {
+						this.plugin.settings[key] = v;
+						await this.plugin.persist();
+						this.plugin.applyReaderTheme();
+					});
+				})
+				.addExtraButton((b) =>
+					b
+						.setIcon("rotate-ccw")
+						.setTooltip(t().setReaderResetColorTooltip)
+						.onClick(async () => {
+							this.plugin.settings[key] = "";
+							await this.plugin.persist();
+							this.plugin.applyReaderTheme();
+							await this.render();
+						})
+				);
+		};
+
+		themedColor(t().setReaderAyahColorName, t().setReaderAyahColorDesc, "readerAyahNumColor", "--text-accent");
+		themedColor(t().setReaderTafsirColorName, t().setReaderTafsirColorDesc, "readerTafsirColor", "--text-muted");
+
+		new Setting(containerEl)
+			.setName(t().setReaderBismillahSizeName)
+			.setDesc(t().setReaderBismillahSizeDesc)
+			.addSlider((s) =>
+				s
+					.setLimits(1, 2.4, 0.1)
+					.setValue(this.plugin.settings.readerBismillahSize)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						this.plugin.settings.readerBismillahSize = v;
+						await this.plugin.persist();
+						this.plugin.applyReaderTheme();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName(t().setReaderTitleSizeName)
+			.setDesc(t().setReaderTitleSizeDesc)
+			.addSlider((s) =>
+				s
+					.setLimits(1, 2, 0.1)
+					.setValue(this.plugin.settings.readerTitleSize)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						this.plugin.settings.readerTitleSize = v;
+						await this.plugin.persist();
+						this.plugin.applyReaderTheme();
+					})
+			);
+
+		const hideToggle = (
+			name: string,
+			desc: string,
+			key:
+				| "readerHideScriptPicker"
+				| "readerHideFontPicker"
+				| "readerHideTafsirPicker"
+				| "readerHideSizeButtons"
+				| "readerHidePopout"
+		) => {
+			new Setting(containerEl)
+				.setName(name)
+				.setDesc(desc)
+				.addToggle((tg) =>
+					tg.setValue(this.plugin.settings[key]).onChange(async (v) => {
+						this.plugin.settings[key] = v;
+						await this.plugin.persist();
+						this.plugin.applyReaderTheme();
+					})
+				);
+		};
+
+		hideToggle(t().setReaderHideScriptPickerName, t().setReaderHideScriptPickerDesc, "readerHideScriptPicker");
+		hideToggle(t().setReaderHideFontPickerName, t().setReaderHideFontPickerDesc, "readerHideFontPicker");
+		hideToggle(t().setReaderHideTafsirPickerName, t().setReaderHideTafsirPickerDesc, "readerHideTafsirPicker");
+		hideToggle(t().setReaderHideSizeButtonsName, t().setReaderHideSizeButtonsDesc, "readerHideSizeButtons");
+		hideToggle(t().setReaderHidePopoutName, t().setReaderHidePopoutDesc, "readerHidePopout");
 	}
 
 	private renderLibraryZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
