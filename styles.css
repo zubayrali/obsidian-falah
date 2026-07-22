@@ -478,3 +478,36 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
+
+/* Settings tab — left-nav tabbed shell */
+.falah-settings-shell {
+	display: flex;
+	gap: 1.5em;
+	align-items: flex-start;
+}
+.falah-settings-nav {
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 160px;
+	gap: 2px;
+}
+.falah-settings-nav-item {
+	padding: 6px 12px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	color: var(--text-muted);
+}
+.falah-settings-nav-item:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.falah-settings-nav-item.is-active {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-weight: 600;
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+.falah-settings-content {
+	flex: 1;
+	min-width: 0;
+}
