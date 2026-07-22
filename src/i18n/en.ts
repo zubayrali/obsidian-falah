@@ -174,6 +174,29 @@ export const en = {
 	libraryCancelButton: "Cancel",
 	libraryDownloadProgress: (name: string, done: number, total: number) => `${name}: ${done}/${total} surahs`,
 	libraryClearButton: "Clear",
+
+	// -- Bookmarks --
+	ribbonOpenBookmarks: "Open bookmarks",
+	cmdOpenBookmarks: "Open bookmarks",
+	cmdBookmarkUnderCursor: "Bookmark reference under cursor",
+	cmdExportBookmarks: "Export bookmarks to a Markdown note",
+	cmdImportBookmarks: "Import bookmarks from a note",
+	cmdCleanupBookmarks: "Clean up unresolvable bookmarks",
+	bookmarksViewTitle: "Bookmarks",
+	bookmarksEmpty: "No bookmarks yet.",
+	bookmarksCleanupButton: (count: number) => `Clean up unresolvable (${count})`,
+	bookmarkRemove: "Remove",
+	bookmarkAddLabel: "Bookmark",
+	bookmarkedLabel: "Bookmarked",
+	bookmarkBadgeInvalid: "Invalid reference",
+	bookmarkBadgeCollectionMissing: (collection: string) => `${collection} not installed`,
+	bookmarkBadgeLensDormant: (editionId: string) => `${editionId} not installed — reinstall to restore`,
+	noticeBookmarksImported: "Imported bookmarks",
+	noticeBookmarksExported: (path: string) => `Exported bookmarks to ${path}`,
+	noticeBookmarksExportFailed: (reason: string) => `Failed to export bookmarks: ${reason}`,
+	noticeBookmarksCleanedUp: (count: number) => `Removed ${count} unresolvable bookmark(s)`,
+	setBookmarksPathName: "Bookmarks file",
+	setBookmarksPathDesc: "Vault-relative path to the bookmarks JSON file. Takes effect on reload.",
 };
 
 export type Strings = typeof en;

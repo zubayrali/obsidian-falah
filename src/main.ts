@@ -310,15 +310,15 @@ export default class FalahPlugin extends Plugin {
 			editorCallback: (editor) => void this.refreshAtCursor(editor),
 		});
 
-		this.addRibbonIcon("bookmark", "Open bookmarks", () => void this.openBookmarks());
+		this.addRibbonIcon("bookmark", t().ribbonOpenBookmarks, () => void this.openBookmarks());
 		this.addCommand({
 			id: "open-bookmarks",
-			name: "Open bookmarks",
+			name: t().cmdOpenBookmarks,
 			callback: () => void this.openBookmarks(),
 		});
 		this.addCommand({
 			id: "bookmark-under-cursor",
-			name: "Bookmark reference under cursor",
+			name: t().cmdBookmarkUnderCursor,
 			editorCheckCallback: (checking, editor) => {
 				const ref = this.refUnderCursor(editor);
 				if (!ref) return false;
@@ -328,17 +328,17 @@ export default class FalahPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "export-bookmarks",
-			name: "Export bookmarks to a Markdown note",
+			name: t().cmdExportBookmarks,
 			callback: () => void this.exportBookmarks(),
 		});
 		this.addCommand({
 			id: "import-bookmarks",
-			name: "Import bookmarks from a note",
+			name: t().cmdImportBookmarks,
 			editorCallback: (editor) => void this.importBookmarks(editor.getValue()),
 		});
 		this.addCommand({
 			id: "cleanup-bookmarks",
-			name: "Clean up unresolvable bookmarks",
+			name: t().cmdCleanupBookmarks,
 			callback: () => void this.cleanupBookmarks(),
 		});
 	}
@@ -457,9 +457,9 @@ export default class FalahPlugin extends Plugin {
 		try {
 			if (dir && !(await this.app.vault.adapter.exists(dir))) await this.app.vault.adapter.mkdir(dir);
 			await this.app.vault.adapter.write(path, md);
-			logMessage(`Exported bookmarks to ${path}`, "info");
+			logMessage(t().noticeBookmarksExported(path), "info");
 		} catch (e) {
-			logMessage(`Failed to export bookmarks: ${errMsg(e)}`, "warn");
+			logMessage(t().noticeBookmarksExportFailed(errMsg(e)), "warn");
 		}
 	}
 
@@ -473,7 +473,7 @@ export default class FalahPlugin extends Plugin {
 				}
 			}
 		}
-		logMessage("Imported bookmarks", "info");
+		logMessage(t().noticeBookmarksImported, "info");
 	}
 
 	async cleanupBookmarks(): Promise<void> {
@@ -491,7 +491,7 @@ export default class FalahPlugin extends Plugin {
 				}
 			}
 		}
-		logMessage(`Removed ${removed} unresolvable bookmark(s)`, "info");
+		logMessage(t().noticeBookmarksCleanedUp(removed), "info");
 	}
 
 	async getDetail(ref: IslamicReference): Promise<ReferenceContent> {
@@ -1206,8 +1206,8 @@ class FalahSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(details)
-			.setName("Bookmarks file")
-			.setDesc("Vault-relative path to the bookmarks JSON file. Takes effect on reload.")
+			.setName(t().setBookmarksPathName)
+			.setDesc(t().setBookmarksPathDesc)
 			.addText((tx) =>
 				tx
 					.setPlaceholder(DEFAULT_SETTINGS.bookmarksPath)

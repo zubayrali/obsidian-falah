@@ -9,11 +9,16 @@ export interface AvailabilitySnapshot {
 	collections: Set<string>; // installed hadith collection ids
 }
 
+export type Badge =
+	| { kind: "invalid" }
+	| { kind: "collection-missing"; collection: string }
+	| { kind: "lens-dormant"; editionId: string };
+
 export interface RowState {
 	anchorOk: boolean;
 	lensState: "none" | "ok" | "dormant";
 	label: string;
-	badge?: string;
+	badge?: Badge;
 }
 
 export function resolveRow(item: Bookmark, snap: AvailabilitySnapshot): RowState {
@@ -21,11 +26,11 @@ export function resolveRow(item: Bookmark, snap: AvailabilitySnapshot): RowState
 	const anchorOk = ref !== null; // structural validity only — install state never invalidates an anchor
 	const label = ref ? toLabel(ref) : item.anchor;
 
-	let badge: string | undefined;
+	let badge: Badge | undefined;
 	if (!anchorOk) {
-		badge = "Invalid reference";
+		badge = { kind: "invalid" };
 	} else if (ref.kind === "hadith" && !snap.collections.has(ref.collection)) {
-		badge = `${ref.collection} not installed`; // stub — kept, recoverable, never deleted
+		badge = { kind: "collection-missing", collection: ref.collection }; // stub — kept, recoverable, never deleted
 	}
 
 	let lensState: RowState["lensState"] = "none";
@@ -34,7 +39,7 @@ export function resolveRow(item: Bookmark, snap: AvailabilitySnapshot): RowState
 			lensState = "ok";
 		} else {
 			lensState = "dormant";
-			badge = `${item.lens.editionId} not installed — reinstall to restore`;
+			badge = { kind: "lens-dormant", editionId: item.lens.editionId };
 		}
 	}
 	return { anchorOk, lensState, label, badge };

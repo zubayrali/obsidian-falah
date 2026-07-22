@@ -125,12 +125,12 @@ export class ReferenceDetailModal extends Modal {
 	private bookmarkButton(container: HTMLElement): void {
 		const anchor = toUri(this.ref);
 		const btn = container.createEl("button", {
-			text: this.plugin.bookmarks.has(anchor) ? "Bookmarked" : "Bookmark",
+			text: this.plugin.bookmarks.has(anchor) ? t().bookmarkedLabel : t().bookmarkAddLabel,
 		});
 		btn.onclick = async () => {
 			if (this.plugin.bookmarks.has(anchor)) await this.plugin.bookmarks.remove(anchor);
 			else await this.plugin.bookmarks.add({ anchor });
-			btn.setText(this.plugin.bookmarks.has(anchor) ? "Bookmarked" : "Bookmark");
+			btn.setText(this.plugin.bookmarks.has(anchor) ? t().bookmarkedLabel : t().bookmarkAddLabel);
 		};
 	}
 

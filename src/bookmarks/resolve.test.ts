@@ -27,12 +27,14 @@ describe("resolveRow", () => {
 			snap,
 		);
 		expect(s.lensState).toBe("dormant");
-		expect(s.badge).toContain("en.gone");
+		expect(s.badge?.kind).toBe("lens-dormant");
+		expect(s.badge).toEqual({ kind: "lens-dormant", editionId: "en.gone" });
 	});
 	it("hadith with uninstalled collection shows a stub badge but stays listed", () => {
 		const s = resolveRow({ id: "a", anchor: "falah://hadith/muslim/1", added: 0 }, snap);
 		expect(s.anchorOk).toBe(true);
-		expect(s.badge).toContain("not installed");
+		expect(s.badge?.kind).toBe("collection-missing");
+		expect(s.badge).toEqual({ kind: "collection-missing", collection: "muslim" });
 	});
 	it("hadith with installed collection has no stub badge", () => {
 		const s = resolveRow({ id: "a", anchor: "falah://hadith/bukhari/1", added: 0 }, snap);
@@ -42,6 +44,6 @@ describe("resolveRow", () => {
 	it("malformed anchor is flagged invalid, not a stub", () => {
 		const s = resolveRow({ id: "a", anchor: "falah://quran/0/0", added: 0 }, snap);
 		expect(s.anchorOk).toBe(false);
-		expect(s.badge).toBe("Invalid reference");
+		expect(s.badge?.kind).toBe("invalid");
 	});
 });

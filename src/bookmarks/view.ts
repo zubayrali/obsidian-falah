@@ -8,7 +8,8 @@ import { ItemView, Menu } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type FalahPlugin from "../main";
 import { parseRefUri } from "../ref";
-import { resolveRow, type AvailabilitySnapshot } from "./resolve";
+import { t } from "../i18n";
+import { resolveRow, type AvailabilitySnapshot, type Badge } from "./resolve";
 import type { Bookmark } from "./schema";
 
 export const VIEW_TYPE_BOOKMARKS = "falah-bookmarks";
@@ -24,7 +25,7 @@ export class BookmarksView extends ItemView {
 		return VIEW_TYPE_BOOKMARKS;
 	}
 	getDisplayText(): string {
-		return "Bookmarks";
+		return t().bookmarksViewTitle;
 	}
 	getIcon(): string {
 		return "bookmark";
@@ -62,19 +63,19 @@ export class BookmarksView extends ItemView {
 		root.addClass("falah-bookmarks");
 
 		const header = root.createDiv({ cls: "falah-bookmarks-header" });
-		header.createEl("h2", { text: "Bookmarks" });
+		header.createEl("h2", { text: t().bookmarksViewTitle });
 		const unresolvable = groups.flatMap((g) => g.items).filter((item) => !resolveRow(item, snap).anchorOk);
 		if (unresolvable.length) {
 			const cleanupBtn = header.createEl("button", {
 				cls: "falah-bookmarks-cleanup",
-				text: `Clean up unresolvable (${unresolvable.length})`,
+				text: t().bookmarksCleanupButton(unresolvable.length),
 			});
 			cleanupBtn.onclick = () => void this.cleanupUnresolvable(unresolvable);
 		}
 
 		const hasAny = groups.some((g) => g.items.length);
 		if (!hasAny) {
-			root.createDiv({ cls: "falah-bookmarks-empty", text: "No bookmarks yet." });
+			root.createDiv({ cls: "falah-bookmarks-empty", text: t().bookmarksEmpty });
 			return;
 		}
 
@@ -96,10 +97,10 @@ export class BookmarksView extends ItemView {
 		const main = row.createDiv({ cls: "falah-bookmark-main" });
 		main.createSpan({ cls: "falah-bookmark-label", text: state.label });
 		if (item.note) main.createSpan({ cls: "falah-bookmark-note", text: item.note });
-		if (state.badge) main.createSpan({ cls: "falah-bookmark-badge", text: state.badge });
+		if (state.badge) main.createSpan({ cls: "falah-bookmark-badge", text: this.badgeText(state.badge) });
 		main.onClickEvent(() => this.openAnchor(item));
 
-		const removeBtn = row.createEl("button", { cls: "falah-bookmark-remove", text: "Remove" });
+		const removeBtn = row.createEl("button", { cls: "falah-bookmark-remove", text: t().bookmarkRemove });
 		removeBtn.onclick = (e) => {
 			e.stopPropagation();
 			void this.plugin.bookmarks.remove(item.id);
@@ -110,12 +111,23 @@ export class BookmarksView extends ItemView {
 			menu
 				.addItem((mi) =>
 					mi
-						.setTitle("Remove")
+						.setTitle(t().bookmarkRemove)
 						.setIcon("trash")
 						.onClick(() => void this.plugin.bookmarks.remove(item.id))
 				);
 			menu.showAtMouseEvent(e);
 		};
+	}
+
+	private badgeText(b: Badge): string {
+		switch (b.kind) {
+			case "invalid":
+				return t().bookmarkBadgeInvalid;
+			case "collection-missing":
+				return t().bookmarkBadgeCollectionMissing(b.collection);
+			case "lens-dormant":
+				return t().bookmarkBadgeLensDormant(b.editionId);
+		}
 	}
 
 	private async cleanupUnresolvable(items: Bookmark[]): Promise<void> {
