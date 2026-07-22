@@ -32,4 +32,8 @@ export const ar: Partial<Strings> = {
     sortAddedLabel: "المُضافة حديثًا",
     sortManualLabel: "ترتيب يدوي",
     sortSurahLabel: "ترتيب السور",
+    bookmarksNewCollection: "مجموعة جديدة",
+    bookmarksRenameCollection: "إعادة تسمية المجموعة",
+    bookmarksDeleteCollection: "حذف المجموعة",
+    bookmarkMoveTo: "نقل إلى",
 };

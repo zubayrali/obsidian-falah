@@ -236,6 +236,13 @@ export const en = {
 	sortManualLabel: "Manual order",
 	sortSurahLabel: "Surah order",
 	bookmarkNewCollectionPrompt: "New collection name",
+	bookmarksFavouritesHeading: "★ Favourites",
+	bookmarksNewCollection: "New collection",
+	bookmarksRenameCollection: "Rename collection",
+	bookmarksDeleteCollection: "Delete collection",
+	bookmarkMoveTo: "Move to",
+	bookmarkFavourite: "Favourite",
+	bookmarkUnfavourite: "Unfavourite",
 };
 
 export type Strings = typeof en;

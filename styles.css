@@ -479,6 +479,105 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 	outline-offset: 1px;
 }
 
+.falah-bookmarks-new {
+	display: block;
+	width: 100%;
+	background: transparent;
+	border: 1px dashed var(--background-modifier-border);
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	padding: var(--size-2-2) var(--size-2-3);
+	margin-bottom: var(--size-4-2);
+	cursor: pointer;
+}
+.falah-bookmarks-new:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--text-muted);
+}
+
+.falah-bookmarks-favourites-head {
+	color: var(--text-accent);
+}
+
+.falah-bookmark-star {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	font-size: var(--font-ui-medium);
+	line-height: 1;
+	padding: 0 var(--size-2-2) 0 0;
+}
+.falah-bookmark-star:hover {
+	color: var(--text-muted);
+}
+.falah-bookmark-star.is-favourite {
+	color: var(--text-accent);
+}
+.falah-bookmark-star:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.falah-bookmark-collection {
+	margin-bottom: var(--size-2-2);
+}
+.falah-bookmark-collection-head {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--size-2-2) var(--size-2-3);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin: var(--size-4-4) 0 var(--size-2-2);
+}
+.falah-bookmark-collection-head:hover {
+	background: var(--background-modifier-hover);
+}
+.falah-bookmark-collection-chevron {
+	width: 1em;
+	text-align: center;
+	flex-shrink: 0;
+}
+.falah-bookmark-collection-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.falah-bookmark-collection-count {
+	color: var(--text-faint);
+}
+.falah-bookmark-collection-menu {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 0 var(--size-2-2);
+	opacity: 0;
+	transition: opacity 0.1s ease;
+}
+.falah-bookmark-collection-head:hover .falah-bookmark-collection-menu {
+	opacity: 1;
+}
+.falah-bookmark-collection-menu:hover {
+	color: var(--text-normal);
+}
+.falah-bookmark-collection-menu:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 /* Settings tab — left-nav tabbed shell */
 .falah-settings-shell {
 	display: flex;

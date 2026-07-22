@@ -98,6 +98,11 @@ describe("BookmarkStoreService", () => {
 			await svc.deleteGroup(def.id);
 			expect(svc.list().some(g => g.name === "Bookmarks")).toBe(true);
 		});
+		it("setCollapsed persists the collapsed flag on a group", async () => {
+			const g = await svc.createGroup("Juz Amma");
+			await svc.setCollapsed(g.id, true);
+			expect(svc.list().find((x) => x.id === g.id)!.collapsed).toBe(true);
+		});
 		it("moveItem reassigns a bookmark to another collection", async () => {
 			const b = await svc.add({ anchor: "falah://quran/2/255" });
 			const target = await svc.createGroup("Duas");

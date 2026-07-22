@@ -68,6 +68,13 @@ export class BookmarkStoreService {
 		}
 	}
 
+	async setCollapsed(id: string, collapsed: boolean): Promise<void> {
+		const g = this.store.groups.find((x) => x.id === id);
+		if (!g) return;
+		g.collapsed = collapsed;
+		await this.persist();
+	}
+
 	async setGroupOrder(orderedIds: string[]): Promise<void> {
 		orderedIds.forEach((id, i) => {
 			const g = this.store.groups.find((x) => x.id === id);
