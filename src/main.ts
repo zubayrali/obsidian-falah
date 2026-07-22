@@ -57,6 +57,7 @@ import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
 import { FontManager, enumerateSystemFonts } from "./font-loader";
 import { BookmarkStoreService } from "./bookmarks/store";
+import type { BookmarkSort } from "./bookmarks/sort";
 import {
 	VerseActionRegistry,
 	SlashItemRegistry,
@@ -83,6 +84,9 @@ interface FalahSettings {
 	fontByScript: Record<string, string>;
 	hadithSunnahApiKey: string;
 	bookmarksPath: string;
+	bookmarkDefaultCollection: string;
+	bookmarkShowFavourites: boolean;
+	bookmarkSort: BookmarkSort;
 	readerMaxWidth: number;
 	readerAyahNumColor: string;
 	readerTafsirColor: string;
@@ -104,6 +108,9 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	fontByScript: { ...DEFAULT_FONT_BY_SCRIPT },
 	hadithSunnahApiKey: "",
 	bookmarksPath: "Falah/bookmarks.json",
+	bookmarkDefaultCollection: "Bookmarks",
+	bookmarkShowFavourites: true,
+	bookmarkSort: "added",
 	readerMaxWidth: 720,
 	readerAyahNumColor: "",
 	readerTafsirColor: "",
@@ -1404,6 +1411,47 @@ class FalahSettingTab extends PluginSettingTab {
 					await this.plugin.persist();
 				})
 			);
+
+		new Setting(details).setName(t().setHeadingBookmarks).setHeading();
+
+		new Setting(details)
+			.setName(t().setBookmarkDefaultCollectionName)
+			.setDesc(t().setBookmarkDefaultCollectionDesc)
+			.addDropdown((d) => {
+				const names = Array.from(new Set([
+					"Bookmarks",
+					...this.plugin.bookmarks.list().map((g) => g.name),
+				]));
+				for (const n of names) d.addOption(n, n);
+				d.setValue(this.plugin.settings.bookmarkDefaultCollection);
+				d.onChange(async (v) => {
+					this.plugin.settings.bookmarkDefaultCollection = v || "Bookmarks";
+					await this.plugin.persist();
+				});
+			});
+
+		new Setting(details)
+			.setName(t().setBookmarkShowFavouritesName)
+			.setDesc(t().setBookmarkShowFavouritesDesc)
+			.addToggle((tg) => tg
+				.setValue(this.plugin.settings.bookmarkShowFavourites)
+				.onChange(async (v) => {
+					this.plugin.settings.bookmarkShowFavourites = v;
+					await this.plugin.persist();
+				}));
+
+		new Setting(details)
+			.setName(t().setBookmarkSortName)
+			.addDropdown((d) => {
+				d.addOption("added", t().sortAddedLabel);
+				d.addOption("manual", t().sortManualLabel);
+				d.addOption("surah", t().sortSurahLabel);
+				d.setValue(this.plugin.settings.bookmarkSort);
+				d.onChange(async (v) => {
+					this.plugin.settings.bookmarkSort = v as BookmarkSort;
+					await this.plugin.persist();
+				});
+			});
 
 		new Setting(details)
 			.setName(t().setBookmarksPathName)

@@ -25,4 +25,11 @@ export const ar: Partial<Strings> = {
     bookmarkAddLabel: "علامة مرجعية",
     bookmarkedLabel: "محفوظ",
     setBookmarksPathName: "ملف العلامات المرجعية",
+    setHeadingBookmarks: "العلامات المرجعية",
+    setBookmarkDefaultCollectionName: "المجموعة الافتراضية",
+    setBookmarkShowFavouritesName: "إظهار قسم المفضلة",
+    setBookmarkSortName: "ترتيب العلامات المرجعية حسب",
+    sortAddedLabel: "المُضافة حديثًا",
+    sortManualLabel: "ترتيب يدوي",
+    sortSurahLabel: "ترتيب السور",
 };

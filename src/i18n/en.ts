@@ -226,6 +226,15 @@ export const en = {
 	noticeBookmarksCleanedUp: (count: number) => `Removed ${count} unresolvable bookmark(s)`,
 	setBookmarksPathName: "Bookmarks file",
 	setBookmarksPathDesc: "Vault-relative path to the bookmarks JSON file. Takes effect on reload.",
+	setHeadingBookmarks: "Bookmarks",
+	setBookmarkDefaultCollectionName: "Default collection",
+	setBookmarkDefaultCollectionDesc: "New bookmarks go here unless you pick another collection.",
+	setBookmarkShowFavouritesName: "Show favourites section",
+	setBookmarkShowFavouritesDesc: "Pin a ★ Favourites section at the top of the bookmarks view.",
+	setBookmarkSortName: "Sort bookmarks by",
+	sortAddedLabel: "Recently added",
+	sortManualLabel: "Manual order",
+	sortSurahLabel: "Surah order",
 };
 
 export type Strings = typeof en;
