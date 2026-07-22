@@ -132,6 +132,15 @@ export class ReferenceDetailModal extends Modal {
 			else await this.plugin.bookmarks.add({ anchor });
 			btn.setText(this.plugin.bookmarks.has(anchor) ? t().bookmarkedLabel : t().bookmarkAddLabel);
 		};
+
+		const favBtn = container.createEl("button", {
+			text: this.plugin.bookmarks.isFavourite(anchor) ? "★" : "☆",
+			attr: { "aria-label": "Toggle favourite" },
+		});
+		favBtn.onclick = async () => {
+			await this.plugin.bookmarks.setFavourite(anchor, !this.plugin.bookmarks.isFavourite(anchor));
+			favBtn.setText(this.plugin.bookmarks.isFavourite(anchor) ? "★" : "☆");
+		};
 	}
 
 	private actions(body: HTMLElement, url: string, copies: Array<[string, string | undefined]>): void {

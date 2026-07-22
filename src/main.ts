@@ -52,6 +52,8 @@ import { QuranReaderView, VIEW_TYPE_QURAN_READER } from "./reader";
 import { BookmarksView, VIEW_TYPE_BOOKMARKS } from "./bookmarks/view";
 import { exportMarkdown, importText } from "./bookmarks/markdown";
 import { resolveRow, type AvailabilitySnapshot } from "./bookmarks/resolve";
+import { promptName } from "./bookmarks/prompt";
+import type { Lens } from "./bookmarks/schema";
 import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
@@ -390,6 +392,15 @@ export default class FalahPlugin extends Plugin {
 		return new Promise((resolve) => {
 			new QuranSearchModal(this, resolve).open();
 		});
+	}
+
+	/** Prompts for a new collection name, creates it, and files this bookmark
+	 *  into it. Backs the verse action's "New collection…" submenu entry. */
+	async newCollectionFor(anchor: string, lens?: Lens): Promise<void> {
+		const name = await promptName(this.app, t().bookmarkNewCollectionPrompt);
+		if (!name) return;
+		await this.bookmarks.createGroup(name);
+		await this.bookmarks.add({ anchor, lens, group: name });
 	}
 
 	/** CSS font-family stack for the Quran Arabic of a given script. */

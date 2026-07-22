@@ -235,6 +235,7 @@ export const en = {
 	sortAddedLabel: "Recently added",
 	sortManualLabel: "Manual order",
 	sortSurahLabel: "Surah order",
+	bookmarkNewCollectionPrompt: "New collection name",
 };
 
 export type Strings = typeof en;

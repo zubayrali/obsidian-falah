@@ -58,15 +58,35 @@ export function defaultVerseActions(): VerseAction[] {
 			items(ctx) {
 				const anchor = toUri({ kind: "quran", surah: ctx.surah, ayah: ctx.ayah });
 				const saved = ctx.plugin.bookmarks.has(anchor);
-				return [{
-					title: saved ? "Remove bookmark" : "Bookmark verse",
-					section: "falah-bookmark",
-					icon: saved ? "bookmark-minus" : "bookmark",
-					checked: saved,
-					onClick: () => saved
-						? ctx.plugin.bookmarks.remove(anchor)
-						: void ctx.plugin.bookmarks.add({ anchor }),
-				}];
+				const fav = ctx.plugin.bookmarks.isFavourite(anchor);
+				const out: VerseMenuItem[] = [];
+				if (saved) {
+					out.push({
+						title: "Remove bookmark", section: "falah-bookmark", icon: "bookmark-minus",
+						checked: true, onClick: () => ctx.plugin.bookmarks.remove(anchor),
+					});
+				} else {
+					const def = ctx.plugin.settings.bookmarkDefaultCollection;
+					out.push({
+						title: "Bookmark verse", section: "falah-bookmark", icon: "bookmark",
+						onClick: () => void ctx.plugin.bookmarks.add({ anchor, group: def }),
+					});
+					const submenu: VerseMenuItem[] = ctx.plugin.bookmarks.list().map((g) => ({
+						title: g.name,
+						onClick: () => void ctx.plugin.bookmarks.add({ anchor, group: g.name }),
+					}));
+					submenu.push({
+						title: "New collection…",
+						onClick: () => ctx.plugin.newCollectionFor(anchor),
+					});
+					out.push({ title: "Bookmark to", section: "falah-bookmark", icon: "folder", submenu });
+				}
+				out.push({
+					title: fav ? "Remove from favourites" : "Add to favourites",
+					section: "falah-bookmark", icon: fav ? "star-off" : "star", checked: fav,
+					onClick: () => ctx.plugin.bookmarks.setFavourite(anchor, !fav),
+				});
+				return out;
 			},
 		},
 		{
