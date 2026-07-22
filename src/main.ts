@@ -684,8 +684,21 @@ class FalahSettingTab extends PluginSettingTab {
 		fetched: false,
 	};
 
+	/** Which left-nav tab is open. In-memory only (not persisted) — reopening
+	 *  Settings from scratch always starts on "reader" (see hide()). */
+	private activeTab: "reader" | "library" | "advanced" = "reader";
+
 	display(): void {
 		void this.render();
+	}
+
+	/** Resets the tab selection when Settings closes (or the user navigates to a
+	 *  different settings tab), so the next open starts on Reader. Re-renders
+	 *  that happen while THIS tab stays open (e.g. a zone's own "reload fonts" or
+	 *  "reset color" button calling render() again) don't trigger hide(), so they
+	 *  don't reset the active tab mid-interaction. */
+	hide(): void {
+		this.activeTab = "reader";
 	}
 
 	private async render(): Promise<void> {
@@ -707,11 +720,36 @@ class FalahSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		this.renderDisplayZone(containerEl, resources);
-		this.renderReaderZone(containerEl);
-		this.renderLibraryZone(containerEl, resources);
 		this.renderCompanionZone(containerEl);
-		this.renderAdvancedZone(containerEl);
+
+		const shell = containerEl.createDiv({ cls: "falah-settings-shell" });
+		const nav = shell.createDiv({ cls: "falah-settings-nav" });
+		const content = shell.createDiv({ cls: "falah-settings-content" });
+
+		const tabs: { id: "reader" | "library" | "advanced"; label: string }[] = [
+			{ id: "reader", label: t().setTabReader },
+			{ id: "library", label: t().setTabLibrary },
+			{ id: "advanced", label: t().setTabAdvanced },
+		];
+		for (const tabDef of tabs) {
+			const item = nav.createDiv({
+				cls: "falah-settings-nav-item" + (tabDef.id === this.activeTab ? " is-active" : ""),
+				text: tabDef.label,
+			});
+			item.onclick = () => {
+				this.activeTab = tabDef.id;
+				void this.render();
+			};
+		}
+
+		if (this.activeTab === "reader") {
+			this.renderDisplayZone(content, resources);
+			this.renderReaderZone(content);
+		} else if (this.activeTab === "library") {
+			this.renderLibraryZone(content, resources);
+		} else {
+			this.renderAdvancedZone(content);
+		}
 	}
 
 	/** Points at the Tadabbur companion, which builds reflection/journaling on
