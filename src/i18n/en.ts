@@ -61,6 +61,11 @@ export const en = {
 	setHeadingAdvanced: "Advanced",
 	setHeadingReader: "Reader",
 
+	// -- Settings: tab labels --
+	setTabReader: "Reader",
+	setTabLibrary: "Library",
+	setTabAdvanced: "Advanced",
+
 	// -- Settings: Reader zone --
 	setReaderMaxWidthName: "Max reading width",
 	setReaderMaxWidthDesc: "Caps the reading column so text doesn't run edge-to-edge with sidebars closed.",
