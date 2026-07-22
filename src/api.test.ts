@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SlashItemRegistry, VerseActionRegistry } from "./api";
+import { FALAH_API_VERSION, SlashItemRegistry, VerseActionRegistry } from "./api";
 import type { SlashItem } from "./api";
 import type { VerseAction } from "./verse-actions";
 import FalahPlugin from "./main";
@@ -59,5 +59,11 @@ describe("SlashItemRegistry", () => {
 		reg.register(item("reflect"));
 		reg.list().push(item("injected"));
 		expect(reg.list().map((x) => x.id)).toEqual(["reflect"]);
+	});
+});
+
+describe("api v5 bookmarks surface", () => {
+	it("version is 5", () => {
+		expect(FALAH_API_VERSION).toBe(5);
 	});
 });

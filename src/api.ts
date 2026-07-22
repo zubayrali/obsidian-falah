@@ -5,8 +5,9 @@ import type { App, Editor, TFile } from "obsidian";
 import type { VerseAction, VerseContext } from "./verse-actions";
 import type { IslamicReference, QuranRef, RenderedText, FoundReference } from "./ref";
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
+import type { BookmarkGroup, Bookmark, Lens } from "./bookmarks/schema";
 
-export const FALAH_API_VERSION = 4;
+export const FALAH_API_VERSION = 5;
 
 /** True when `id` is in the user's enabled-plugin set. Unlike reading
  *  `app.plugins.plugins[id]`, this is load-order independent: `enabledPlugins`
@@ -49,6 +50,17 @@ export interface FalahRefApi {
 	parseAyahKey(key: string): { surah: number; ayah: number } | null;
 }
 
+export interface FalahBookmarksApi {
+	/** All bookmark groups, in display order. */
+	list(): BookmarkGroup[];
+	/** True if a bookmark with this anchor (and lens, if given) already exists. */
+	has(anchor: string, lens?: Lens): boolean;
+	/** Add a bookmark, creating its group if needed. Resolves with the stored entry. */
+	add(input: { anchor: string; lens?: Lens; note?: string; group?: string }): Promise<Bookmark>;
+	/** Remove a bookmark by id. No-op if it doesn't exist. */
+	remove(id: string): Promise<void>;
+}
+
 export interface FalahApi {
 	readonly version: number;
 	registerVerseAction(action: VerseAction): () => void;
@@ -67,6 +79,10 @@ export interface FalahApi {
 	 *  decorations live after their own data changes (e.g. a reflection is saved). */
 	refreshReader(): void;
 	ref: FalahRefApi;
+	/** Bookmarks store. Added in v5. */
+	bookmarks: FalahBookmarksApi;
+	/** Fires after any bookmark add/remove/import. Added in v5. */
+	onBookmarksChanged(cb: () => void): () => void;
 }
 
 /** Ordered registry: immutable defaults first, then dynamically registered items. */

@@ -16,4 +16,13 @@ export const ar: Partial<Strings> = {
     libraryRefreshButton: "تحديث",
     libraryInstallButton: "تثبيت",
     libraryLoading: "جارٍ التحميل…",
+
+    ribbonOpenBookmarks: "فتح العلامات المرجعية",
+    cmdOpenBookmarks: "فتح العلامات المرجعية",
+    bookmarksViewTitle: "العلامات المرجعية",
+    bookmarksEmpty: "لا توجد علامات مرجعية بعد.",
+    bookmarkRemove: "إزالة",
+    bookmarkAddLabel: "علامة مرجعية",
+    bookmarkedLabel: "محفوظ",
+    setBookmarksPathName: "ملف العلامات المرجعية",
 };

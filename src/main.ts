@@ -49,10 +49,14 @@ import {
 } from "./data/hadith/sources";
 import type { HadithCatalogEntry } from "./data/hadith/schema";
 import { QuranReaderView, VIEW_TYPE_QURAN_READER } from "./reader";
+import { BookmarksView, VIEW_TYPE_BOOKMARKS } from "./bookmarks/view";
+import { exportMarkdown, importText } from "./bookmarks/markdown";
+import { resolveRow, type AvailabilitySnapshot } from "./bookmarks/resolve";
 import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
 import { FontManager, enumerateSystemFonts } from "./font-loader";
+import { BookmarkStoreService } from "./bookmarks/store";
 import {
 	VerseActionRegistry,
 	SlashItemRegistry,
@@ -78,6 +82,7 @@ interface FalahSettings {
 	tafsirResourceId: string;
 	fontByScript: Record<string, string>;
 	hadithSunnahApiKey: string;
+	bookmarksPath: string;
 }
 
 const DEFAULT_SETTINGS: FalahSettings = {
@@ -88,6 +93,7 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	tafsirResourceId: "",
 	fontByScript: { ...DEFAULT_FONT_BY_SCRIPT },
 	hadithSunnahApiKey: "",
+	bookmarksPath: "Falah/bookmarks.json",
 };
 
 export default class FalahPlugin extends Plugin {
@@ -112,6 +118,8 @@ export default class FalahPlugin extends Plugin {
 	ayahRowDecorators: AyahRowDecorator[] = [];
 	api!: FalahApi;
 	fonts!: FontManager;
+	bookmarks!: BookmarkStoreService;
+	hadithIndex!: InstallIndex;
 
 	registerVerseAction(action: VerseAction): () => void {
 		return this.verseActionRegistry.register(action);
@@ -170,6 +178,9 @@ export default class FalahPlugin extends Plugin {
 		);
 
 		this.io = makeFileIO(this.app.vault.adapter, this.manifest.dir ?? "");
+		const vaultIo = makeFileIO(this.app.vault.adapter, "");
+		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
+		await this.bookmarks.load();
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
 		this.fetchJson = makeFetchJson(requestUrl);
@@ -194,13 +205,13 @@ export default class FalahPlugin extends Plugin {
 
 		// Hadith offline layer (generic content infra + isolated hadith domain).
 		const hadithStore = new ResourceStore(this.io);
-		const hadithIndex = new InstallIndex(this.io, "hdata/index.json");
+		this.hadithIndex = new InstallIndex(this.io, "hdata/index.json");
 		this.hadithFetchText = (url) =>
 			requestUrl({ url, throw: false }).then((r) => {
 				if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}`);
 				return r.text;
 			});
-		this.hadith = new HadithResolver(hadithStore, hadithIndex, new HadithCoreLoader(), {
+		this.hadith = new HadithResolver(hadithStore, this.hadithIndex, new HadithCoreLoader(), {
 			getHadith: (ref) => hadithProvider.getHadith(ref),
 		});
 		this.hadithSources = [
@@ -217,6 +228,7 @@ export default class FalahPlugin extends Plugin {
 		this.addSettingTab(new FalahSettingTab(this));
 
 		this.registerView(VIEW_TYPE_QURAN_READER, (leaf) => new QuranReaderView(leaf, this));
+		this.registerView(VIEW_TYPE_BOOKMARKS, (leaf) => new BookmarksView(leaf, this));
 		this.api = {
 			version: FALAH_API_VERSION,
 			registerVerseAction: (a) => this.registerVerseAction(a),
@@ -227,6 +239,13 @@ export default class FalahPlugin extends Plugin {
 			navigateReaderTo: (s, a) => this.navigateReaderTo(s, a),
 			refreshReader: () => this.refreshReaderRows(),
 			ref: FALAH_REF,
+			bookmarks: {
+				list: () => this.bookmarks.list(),
+				has: (anchor, lens) => this.bookmarks.has(anchor, lens),
+				add: (input) => this.bookmarks.add(input),
+				remove: (id) => this.bookmarks.remove(id),
+			},
+			onBookmarksChanged: (cb) => this.bookmarks.onChange(cb),
 		};
 		// Announce a fresh API on every load — a disable/re-enable of Falah produces a
 		// NEW api object with empty registries, so companions must know to re-register.
@@ -289,6 +308,38 @@ export default class FalahPlugin extends Plugin {
 			id: "refresh-reference",
 			name: t().cmdRefreshReference,
 			editorCallback: (editor) => void this.refreshAtCursor(editor),
+		});
+
+		this.addRibbonIcon("bookmark", t().ribbonOpenBookmarks, () => void this.openBookmarks());
+		this.addCommand({
+			id: "open-bookmarks",
+			name: t().cmdOpenBookmarks,
+			callback: () => void this.openBookmarks(),
+		});
+		this.addCommand({
+			id: "bookmark-under-cursor",
+			name: t().cmdBookmarkUnderCursor,
+			editorCheckCallback: (checking, editor) => {
+				const ref = this.refUnderCursor(editor);
+				if (!ref) return false;
+				if (!checking) void this.bookmarks.add({ anchor: toUri(ref) });
+				return true;
+			},
+		});
+		this.addCommand({
+			id: "export-bookmarks",
+			name: t().cmdExportBookmarks,
+			callback: () => void this.exportBookmarks(),
+		});
+		this.addCommand({
+			id: "import-bookmarks",
+			name: t().cmdImportBookmarks,
+			editorCallback: (editor) => void this.importBookmarks(editor.getValue()),
+		});
+		this.addCommand({
+			id: "cleanup-bookmarks",
+			name: t().cmdCleanupBookmarks,
+			callback: () => void this.cleanupBookmarks(),
 		});
 	}
 
@@ -366,6 +417,81 @@ export default class FalahPlugin extends Plugin {
 		// reach into the view instance to navigate it.
 		await (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred?.();
 		if (leaf.view instanceof QuranReaderView) leaf.view.navigateTo(surah, ayah);
+	}
+
+	/** Open (or focus) the single Bookmarks view in the right sidebar. */
+	async openBookmarks(): Promise<void> {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_BOOKMARKS)[0];
+		if (!leaf) {
+			leaf = workspace.getRightLeaf(false)!;
+			await leaf.setViewState({ type: VIEW_TYPE_BOOKMARKS, active: true });
+		}
+		await workspace.revealLeaf(leaf);
+	}
+
+	/** Installed hadith collection ids, for the bookmarks view's availability
+	 *  snapshot (Task 3's resolveRow). */
+	async installedHadithCollections(): Promise<string[]> {
+		return (await this.hadith.listBrowsable()).map((c) => c.collection);
+	}
+
+	/** Snapshot of what's installed, for degrading bookmark rows (Task 3's
+	 *  resolveRow). Single source of truth — the bookmarks view and
+	 *  cleanupBookmarks() both delegate here rather than rebuilding the sets. */
+	async availabilitySnapshot(): Promise<AvailabilitySnapshot> {
+		const editions = new Set(
+			(await this.quranData.listResources())
+				.filter((r) => r.type === "translation" || r.type === "tafsir")
+				.map((r) => r.id)
+		);
+		const collections = new Set(await this.installedHadithCollections());
+		return { editions, collections };
+	}
+
+	async exportBookmarks(): Promise<void> {
+		const md = exportMarkdown({ version: 1, groups: this.bookmarks.list() });
+		const p = this.settings.bookmarksPath;
+		const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
+		const path = dir ? `${dir}/Bookmarks.md` : "Bookmarks.md";
+		try {
+			if (dir && !(await this.app.vault.adapter.exists(dir))) await this.app.vault.adapter.mkdir(dir);
+			await this.app.vault.adapter.write(path, md);
+			logMessage(t().noticeBookmarksExported(path), "info");
+		} catch (e) {
+			logMessage(t().noticeBookmarksExportFailed(errMsg(e)), "warn");
+		}
+	}
+
+	async importBookmarks(text: string): Promise<void> {
+		const incoming = importText(text);
+		// Merge: add every incoming anchor that isn't already present, into its group.
+		for (const g of incoming.groups) {
+			for (const item of g.items) {
+				if (!this.bookmarks.has(item.anchor, item.lens)) {
+					await this.bookmarks.add({ anchor: item.anchor, lens: item.lens, note: item.note, group: g.name });
+				}
+			}
+		}
+		logMessage(t().noticeBookmarksImported, "info");
+	}
+
+	async cleanupBookmarks(): Promise<void> {
+		const snap = await this.availabilitySnapshot();
+		let removed = 0;
+		for (const g of [...this.bookmarks.list()]) {
+			for (const item of [...g.items]) {
+				const st = resolveRow(item, snap);
+				// Only structurally-invalid anchors (fail to parse) are removed here.
+				// An uninstalled hadith collection or a dormant lens is intentionally
+				// KEPT as a recoverable stub — reinstalling the content restores it.
+				if (!st.anchorOk) {
+					await this.bookmarks.remove(item.id);
+					removed++;
+				}
+			}
+		}
+		logMessage(t().noticeBookmarksCleanedUp(removed), "info");
 	}
 
 	async getDetail(ref: IslamicReference): Promise<ReferenceContent> {
@@ -1077,6 +1203,19 @@ class FalahSettingTab extends PluginSettingTab {
 					this.plugin.settings.tafsirEdition = v.trim();
 					await this.plugin.persist();
 				})
+			);
+
+		new Setting(details)
+			.setName(t().setBookmarksPathName)
+			.setDesc(t().setBookmarksPathDesc)
+			.addText((tx) =>
+				tx
+					.setPlaceholder(DEFAULT_SETTINGS.bookmarksPath)
+					.setValue(this.plugin.settings.bookmarksPath)
+					.onChange(async (v) => {
+						this.plugin.settings.bookmarksPath = v.trim() || DEFAULT_SETTINGS.bookmarksPath;
+						await this.plugin.persist();
+					})
 			);
 
 		new Setting(details)

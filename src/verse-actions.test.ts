@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultVerseActions, tafsirMenuItems } from "./verse-actions";
-import type { VerseContext, VerseView } from "./verse-actions";
+import { defaultVerseActions, tafsirMenuItems, type VerseContext, type VerseView } from "./verse-actions";
 import type { ResourceDescriptor } from "./data/schema";
 
 function tafsir(id: string, name: string): ResourceDescriptor {
@@ -86,5 +85,28 @@ describe("defaultVerseActions", () => {
 		const items = await byId("open-detail").items(makeCtx({ openCapture }));
 		void items[0].onClick!();
 		expect(openCapture.ref).toEqual({ kind: "quran", surah: 2, ayah: 255 });
+	});
+});
+
+describe("bookmark verse action", () => {
+	it("offers a checked toggle reflecting store state", async () => {
+		const action = defaultVerseActions().find((a) => a.id === "bookmark")!;
+		expect(action).toBeTruthy();
+		const added: string[] = [];
+		const ctx = {
+			surah: 2, ayah: 255, ayahKey: "2:255", arabic: "…",
+			plugin: {
+				bookmarks: {
+					has: () => false,
+					add: async (i: { anchor: string }) => { added.push(i.anchor); },
+					remove: async () => {},
+				},
+			},
+		} as unknown as VerseContext;
+		const items = await action.items(ctx);
+		expect(items[0].title).toMatch(/bookmark/i);
+		expect(items[0].checked).toBe(false);
+		await items[0].onClick!();
+		expect(added).toEqual(["falah://quran/2/255"]);
 	});
 });
