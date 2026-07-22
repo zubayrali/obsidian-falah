@@ -18,13 +18,14 @@ export interface RowState {
 
 export function resolveRow(item: Bookmark, snap: AvailabilitySnapshot): RowState {
 	const ref = parseRefUri(item.anchor);
+	const anchorOk = ref !== null; // structural validity only — install state never invalidates an anchor
 	const label = ref ? toLabel(ref) : item.anchor;
 
-	let anchorOk = true;
 	let badge: string | undefined;
-	if (ref?.kind === "hadith" && !snap.collections.has(ref.collection)) {
-		anchorOk = false;
-		badge = `${ref.collection} not installed`;
+	if (!anchorOk) {
+		badge = "Invalid reference";
+	} else if (ref.kind === "hadith" && !snap.collections.has(ref.collection)) {
+		badge = `${ref.collection} not installed`; // stub — kept, recoverable, never deleted
 	}
 
 	let lensState: RowState["lensState"] = "none";

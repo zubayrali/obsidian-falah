@@ -51,9 +51,13 @@ export interface FalahRefApi {
 }
 
 export interface FalahBookmarksApi {
+	/** All bookmark groups, in display order. */
 	list(): BookmarkGroup[];
+	/** True if a bookmark with this anchor (and lens, if given) already exists. */
 	has(anchor: string, lens?: Lens): boolean;
+	/** Add a bookmark, creating its group if needed. Resolves with the stored entry. */
 	add(input: { anchor: string; lens?: Lens; note?: string; group?: string }): Promise<Bookmark>;
+	/** Remove a bookmark by id. No-op if it doesn't exist. */
 	remove(id: string): Promise<void>;
 }
 

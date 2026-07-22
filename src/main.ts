@@ -433,7 +433,7 @@ export default class FalahPlugin extends Plugin {
 	/** Installed hadith collection ids, for the bookmarks view's availability
 	 *  snapshot (Task 3's resolveRow). */
 	async installedHadithCollections(): Promise<string[]> {
-		return (await this.hadithIndex.list()).map((e) => e.id);
+		return (await this.hadith.listBrowsable()).map((c) => c.collection);
 	}
 
 	/** Snapshot of what's installed, for degrading bookmark rows (Task 3's
@@ -451,9 +451,16 @@ export default class FalahPlugin extends Plugin {
 
 	async exportBookmarks(): Promise<void> {
 		const md = exportMarkdown({ version: 1, groups: this.bookmarks.list() });
-		const path = "Falah/Bookmarks.md";
-		await this.app.vault.adapter.write(path, md);
-		logMessage(`Exported bookmarks to ${path}`, "info");
+		const p = this.settings.bookmarksPath;
+		const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
+		const path = dir ? `${dir}/Bookmarks.md` : "Bookmarks.md";
+		try {
+			if (dir && !(await this.app.vault.adapter.exists(dir))) await this.app.vault.adapter.mkdir(dir);
+			await this.app.vault.adapter.write(path, md);
+			logMessage(`Exported bookmarks to ${path}`, "info");
+		} catch (e) {
+			logMessage(`Failed to export bookmarks: ${errMsg(e)}`, "warn");
+		}
 	}
 
 	async importBookmarks(text: string): Promise<void> {
@@ -475,8 +482,9 @@ export default class FalahPlugin extends Plugin {
 		for (const g of [...this.bookmarks.list()]) {
 			for (const item of [...g.items]) {
 				const st = resolveRow(item, snap);
-				// Only unresolvable ANCHORS are removed (missing hadith collection).
-				// Dormant lenses are kept — the verse is still valid.
+				// Only structurally-invalid anchors (fail to parse) are removed here.
+				// An uninstalled hadith collection or a dormant lens is intentionally
+				// KEPT as a recoverable stub — reinstalling the content restores it.
 				if (!st.anchorOk) {
 					await this.bookmarks.remove(item.id);
 					removed++;

@@ -31,7 +31,17 @@ describe("resolveRow", () => {
 	});
 	it("hadith with uninstalled collection shows a stub badge but stays listed", () => {
 		const s = resolveRow({ id: "a", anchor: "falah://hadith/muslim/1", added: 0 }, snap);
-		expect(s.anchorOk).toBe(false);
+		expect(s.anchorOk).toBe(true);
 		expect(s.badge).toContain("not installed");
+	});
+	it("hadith with installed collection has no stub badge", () => {
+		const s = resolveRow({ id: "a", anchor: "falah://hadith/bukhari/1", added: 0 }, snap);
+		expect(s.anchorOk).toBe(true);
+		expect(s.badge).toBeUndefined();
+	});
+	it("malformed anchor is flagged invalid, not a stub", () => {
+		const s = resolveRow({ id: "a", anchor: "falah://quran/0/0", added: 0 }, snap);
+		expect(s.anchorOk).toBe(false);
+		expect(s.badge).toBe("Invalid reference");
 	});
 });
