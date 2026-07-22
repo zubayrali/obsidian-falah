@@ -427,7 +427,7 @@ export default class FalahPlugin extends Plugin {
 			leaf = workspace.getRightLeaf(false)!;
 			await leaf.setViewState({ type: VIEW_TYPE_BOOKMARKS, active: true });
 		}
-		workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
 	}
 
 	/** Installed hadith collection ids, for the bookmarks view's availability

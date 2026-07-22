@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultVerseActions, tafsirMenuItems } from "./verse-actions";
-import type { VerseContext, VerseView } from "./verse-actions";
+import { defaultVerseActions, tafsirMenuItems, type VerseContext, type VerseView } from "./verse-actions";
 import type { ResourceDescriptor } from "./data/schema";
 
 function tafsir(id: string, name: string): ResourceDescriptor {
@@ -103,7 +102,7 @@ describe("bookmark verse action", () => {
 					remove: async () => {},
 				},
 			},
-		} as any;
+		} as unknown as VerseContext;
 		const items = await action.items(ctx);
 		expect(items[0].title).toMatch(/bookmark/i);
 		expect(items[0].checked).toBe(false);

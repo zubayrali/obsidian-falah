@@ -56,7 +56,7 @@ export function defaultVerseActions(): VerseAction[] {
 		{
 			id: "bookmark",
 			items(ctx) {
-				const anchor = toUri({ kind: "quran", surah: ctx.surah, ayah: ctx.ayah } as QuranRef);
+				const anchor = toUri({ kind: "quran", surah: ctx.surah, ayah: ctx.ayah });
 				const saved = ctx.plugin.bookmarks.has(anchor);
 				return [{
 					title: saved ? "Remove bookmark" : "Bookmark verse",
