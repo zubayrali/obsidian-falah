@@ -265,6 +265,10 @@ export default class FalahPlugin extends Plugin {
 				has: (anchor, lens) => this.bookmarks.has(anchor, lens),
 				add: (input) => this.bookmarks.add(input),
 				remove: (id) => this.bookmarks.remove(id),
+				setFavourite: (anchor, on, lens) => this.bookmarks.setFavourite(anchor, on, lens),
+				favourites: () => this.bookmarks.favourites(),
+				createCollection: (name) => this.bookmarks.createGroup(name),
+				moveItem: (id, toGroupId) => this.bookmarks.moveItem(id, toGroupId),
 			},
 			onBookmarksChanged: (cb) => this.bookmarks.onChange(cb),
 		};
