@@ -106,4 +106,25 @@ describe("BookmarkStoreService", () => {
 			expect(svc.list().find(g => g.id === target.id)!.items.map(i => i.anchor)).toContain("falah://quran/2/255");
 		});
 	});
+
+	describe("favourites", () => {
+		it("setFavourite(on) on a new anchor creates a bookmark in default and flags it", async () => {
+			await svc.setFavourite("falah://quran/2/255", true);
+			expect(svc.isFavourite("falah://quran/2/255")).toBe(true);
+			expect(svc.list().find(g => g.name === "Bookmarks")!.items[0].favourite).toBe(true);
+			expect(svc.favourites().map(i => i.anchor)).toEqual(["falah://quran/2/255"]);
+		});
+		it("setFavourite(off) keeps the bookmark, clears the flag", async () => {
+			const b = await svc.add({ anchor: "falah://quran/1/1", group: "Duas" });
+			await svc.setFavourite(b.anchor, true);
+			await svc.setFavourite(b.anchor, false);
+			expect(svc.isFavourite(b.anchor)).toBe(false);
+			expect(svc.has(b.anchor)).toBe(true); // still bookmarked
+			expect(svc.favourites()).toHaveLength(0);
+		});
+		it("setFavourite(off) on a non-bookmarked anchor is a no-op (creates nothing)", async () => {
+			await svc.setFavourite("falah://quran/9/9", false);
+			expect(svc.has("falah://quran/9/9")).toBe(false);
+		});
+	});
 });

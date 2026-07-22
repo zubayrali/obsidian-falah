@@ -108,6 +108,24 @@ export class BookmarkStoreService {
 		}
 	}
 
+	isFavourite(anchor: string, lens?: Lens): boolean {
+		return this.find(bookmarkId(anchor, lens))?.favourite === true;
+	}
+
+	async setFavourite(anchor: string, on: boolean, lens?: Lens): Promise<void> {
+		let item = this.find(bookmarkId(anchor, lens));
+		if (!item) {
+			if (!on) return;                       // nothing to unfavourite
+			item = await this.add({ anchor, lens }); // create in default, then flag
+		}
+		item.favourite = on;
+		await this.persist();
+	}
+
+	favourites(): Bookmark[] {
+		return this.store.groups.flatMap((g) => g.items).filter((i) => i.favourite);
+	}
+
 	onChange(cb: () => void): () => void {
 		this.listeners.push(cb);
 		return () => {
