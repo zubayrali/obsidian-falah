@@ -65,4 +65,45 @@ describe("BookmarkStoreService", () => {
 		await svc2.load();
 		expect(svc2.list().find((g) => g.name === "Juz Amma")?.items[0].anchor).toBe("falah://quran/1/1");
 	});
+
+	describe("collection management", () => {
+		it("list() returns groups sorted by order", async () => {
+			await svc.createGroup("B");
+			await svc.createGroup("A");
+			await svc.setGroupOrder([svc.list().find(g => g.name === "A")!.id, svc.list().find(g => g.name === "B")!.id]);
+			expect(svc.list().map(g => g.name)).toEqual(["A", "B"]);
+		});
+		it("createGroup reuses an existing name, persists", async () => {
+			const a = await svc.createGroup("Juz Amma");
+			const b = await svc.createGroup("Juz Amma");
+			expect(a.id).toBe(b.id);
+			expect(svc.list().filter(g => g.name === "Juz Amma")).toHaveLength(1);
+		});
+		it("renameGroup changes the name", async () => {
+			const g = await svc.createGroup("Old");
+			await svc.renameGroup(g.id, "New");
+			expect(svc.list().find(x => x.id === g.id)!.name).toBe("New");
+		});
+		it("deleteGroup moves its items into the default group, never deletes them", async () => {
+			const g = await svc.createGroup("Juz Amma");
+			await svc.add({ anchor: "falah://quran/112/1", group: "Juz Amma" });
+			await svc.deleteGroup(g.id);
+			expect(svc.list().some(x => x.name === "Juz Amma")).toBe(false);
+			expect(svc.has("falah://quran/112/1")).toBe(true);
+			expect(svc.list().find(x => x.name === "Bookmarks")!.items.map(i => i.anchor)).toContain("falah://quran/112/1");
+		});
+		it("deleteGroup refuses to delete the default group", async () => {
+			await svc.add({ anchor: "falah://quran/1/1" }); // creates default
+			const def = svc.list().find(g => g.name === "Bookmarks")!;
+			await svc.deleteGroup(def.id);
+			expect(svc.list().some(g => g.name === "Bookmarks")).toBe(true);
+		});
+		it("moveItem reassigns a bookmark to another collection", async () => {
+			const b = await svc.add({ anchor: "falah://quran/2/255" });
+			const target = await svc.createGroup("Duas");
+			await svc.moveItem(b.id, target.id);
+			expect(svc.list().find(g => g.name === "Bookmarks")!.items).toHaveLength(0);
+			expect(svc.list().find(g => g.id === target.id)!.items.map(i => i.anchor)).toContain("falah://quran/2/255");
+		});
+	});
 });
