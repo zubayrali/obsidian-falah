@@ -1198,6 +1198,19 @@ class FalahSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(details)
+			.setName("Bookmarks file")
+			.setDesc("Vault-relative path to the bookmarks JSON file. Takes effect on reload.")
+			.addText((tx) =>
+				tx
+					.setPlaceholder(DEFAULT_SETTINGS.bookmarksPath)
+					.setValue(this.plugin.settings.bookmarksPath)
+					.onChange(async (v) => {
+						this.plugin.settings.bookmarksPath = v.trim() || DEFAULT_SETTINGS.bookmarksPath;
+						await this.plugin.persist();
+					})
+			);
+
+		new Setting(details)
 			.setName(t().setClearCacheName)
 			.setDesc(t().setClearCacheDesc)
 			.addButton((b) =>

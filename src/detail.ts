@@ -3,7 +3,7 @@
 
 import { Modal } from "obsidian";
 import type FalahPlugin from "./main";
-import { IslamicReference, QuranRef, toLabel } from "./ref";
+import { IslamicReference, QuranRef, toLabel, toUri } from "./ref";
 import type { HadithContent, VerseContent } from "./data/schema";
 import { errMsg, hadithExternalUrl, quranExternalUrl } from "./providers";
 import { logMessage } from "./log";
@@ -86,6 +86,7 @@ export class ReferenceDetailModal extends Modal {
 			this.close();
 			void this.plugin.openReader(ref.surah, ref.ayah);
 		};
+		this.bookmarkButton(readerRow);
 
 		this.actions(body, d.externalUrl, [
 			[t().detailCopyArabic, d.arabic],
@@ -103,6 +104,10 @@ export class ReferenceDetailModal extends Modal {
 		if (!d.arabic && !d.translation) {
 			body.createDiv({ cls: "falah-meta", text: t().detailNoText });
 		}
+
+		const row = body.createDiv({ cls: "falah-open-reader-row" });
+		this.bookmarkButton(row);
+
 		this.actions(body, d.externalUrl, [
 			[t().detailCopyArabic, d.arabic],
 			[t().detailCopyTranslation, d.translation],
@@ -111,6 +116,22 @@ export class ReferenceDetailModal extends Modal {
 				`${d.translation ?? d.arabic ?? ""} — ${toLabel(this.ref)} (${d.externalUrl})`.trim(),
 			],
 		]);
+	}
+
+	/** Bookmark toggle for the modal's current `ref`. Computes the anchor fresh
+	 *  at call time (inside the render flow) rather than capturing it in a
+	 *  long-lived closure, since prev/next navigation reassigns `this.ref` and
+	 *  re-renders the body. */
+	private bookmarkButton(container: HTMLElement): void {
+		const anchor = toUri(this.ref);
+		const btn = container.createEl("button", {
+			text: this.plugin.bookmarks.has(anchor) ? "Bookmarked" : "Bookmark",
+		});
+		btn.onclick = async () => {
+			if (this.plugin.bookmarks.has(anchor)) await this.plugin.bookmarks.remove(anchor);
+			else await this.plugin.bookmarks.add({ anchor });
+			btn.setText(this.plugin.bookmarks.has(anchor) ? "Bookmarked" : "Bookmark");
+		};
 	}
 
 	private actions(body: HTMLElement, url: string, copies: Array<[string, string | undefined]>): void {
