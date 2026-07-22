@@ -40,15 +40,11 @@ export class BookmarksView extends ItemView {
 	}
 
 	/** Built once per render: O(installed) to assemble, O(1) per row to consult.
-	 *  Listing never fetches verse/tafsir text — only these two id sets. */
-	private async snapshot(): Promise<AvailabilitySnapshot> {
-		const editions = new Set(
-			(await this.plugin.quranData.listResources())
-				.filter((r) => r.type === "translation" || r.type === "tafsir")
-				.map((r) => r.id)
-		);
-		const collections = new Set(await this.plugin.installedHadithCollections());
-		return { editions, collections };
+	 *  Listing never fetches verse/tafsir text — only these two id sets.
+	 *  Delegates to the plugin's single source of truth (also used by
+	 *  cleanupBookmarks()) so the set-building logic isn't duplicated. */
+	private snapshot(): Promise<AvailabilitySnapshot> {
+		return this.plugin.availabilitySnapshot();
 	}
 
 	private openAnchor(item: Bookmark): void {

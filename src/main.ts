@@ -50,6 +50,8 @@ import {
 import type { HadithCatalogEntry } from "./data/hadith/schema";
 import { QuranReaderView, VIEW_TYPE_QURAN_READER } from "./reader";
 import { BookmarksView, VIEW_TYPE_BOOKMARKS } from "./bookmarks/view";
+import { exportMarkdown, importText } from "./bookmarks/markdown";
+import { resolveRow, type AvailabilitySnapshot } from "./bookmarks/resolve";
 import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
@@ -314,6 +316,31 @@ export default class FalahPlugin extends Plugin {
 			name: "Open bookmarks",
 			callback: () => void this.openBookmarks(),
 		});
+		this.addCommand({
+			id: "bookmark-under-cursor",
+			name: "Bookmark reference under cursor",
+			editorCheckCallback: (checking, editor) => {
+				const ref = this.refUnderCursor(editor);
+				if (!ref) return false;
+				if (!checking) void this.bookmarks.add({ anchor: toUri(ref) });
+				return true;
+			},
+		});
+		this.addCommand({
+			id: "export-bookmarks",
+			name: "Export bookmarks to a Markdown note",
+			callback: () => void this.exportBookmarks(),
+		});
+		this.addCommand({
+			id: "import-bookmarks",
+			name: "Import bookmarks from a note",
+			editorCallback: (editor) => void this.importBookmarks(editor.getValue()),
+		});
+		this.addCommand({
+			id: "cleanup-bookmarks",
+			name: "Clean up unresolvable bookmarks",
+			callback: () => void this.cleanupBookmarks(),
+		});
 	}
 
 	async persist(): Promise<void> {
@@ -407,6 +434,56 @@ export default class FalahPlugin extends Plugin {
 	 *  snapshot (Task 3's resolveRow). */
 	async installedHadithCollections(): Promise<string[]> {
 		return (await this.hadithIndex.list()).map((e) => e.id);
+	}
+
+	/** Snapshot of what's installed, for degrading bookmark rows (Task 3's
+	 *  resolveRow). Single source of truth — the bookmarks view and
+	 *  cleanupBookmarks() both delegate here rather than rebuilding the sets. */
+	async availabilitySnapshot(): Promise<AvailabilitySnapshot> {
+		const editions = new Set(
+			(await this.quranData.listResources())
+				.filter((r) => r.type === "translation" || r.type === "tafsir")
+				.map((r) => r.id)
+		);
+		const collections = new Set(await this.installedHadithCollections());
+		return { editions, collections };
+	}
+
+	async exportBookmarks(): Promise<void> {
+		const md = exportMarkdown({ version: 1, groups: this.bookmarks.list() });
+		const path = "Falah/Bookmarks.md";
+		await this.app.vault.adapter.write(path, md);
+		logMessage(`Exported bookmarks to ${path}`, "info");
+	}
+
+	async importBookmarks(text: string): Promise<void> {
+		const incoming = importText(text);
+		// Merge: add every incoming anchor that isn't already present, into its group.
+		for (const g of incoming.groups) {
+			for (const item of g.items) {
+				if (!this.bookmarks.has(item.anchor, item.lens)) {
+					await this.bookmarks.add({ anchor: item.anchor, lens: item.lens, note: item.note, group: g.name });
+				}
+			}
+		}
+		logMessage("Imported bookmarks", "info");
+	}
+
+	async cleanupBookmarks(): Promise<void> {
+		const snap = await this.availabilitySnapshot();
+		let removed = 0;
+		for (const g of [...this.bookmarks.list()]) {
+			for (const item of [...g.items]) {
+				const st = resolveRow(item, snap);
+				// Only unresolvable ANCHORS are removed (missing hadith collection).
+				// Dormant lenses are kept — the verse is still valid.
+				if (!st.anchorOk) {
+					await this.bookmarks.remove(item.id);
+					removed++;
+				}
+			}
+		}
+		logMessage(`Removed ${removed} unresolvable bookmark(s)`, "info");
 	}
 
 	async getDetail(ref: IslamicReference): Promise<ReferenceContent> {
