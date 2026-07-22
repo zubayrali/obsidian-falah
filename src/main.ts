@@ -83,6 +83,16 @@ interface FalahSettings {
 	fontByScript: Record<string, string>;
 	hadithSunnahApiKey: string;
 	bookmarksPath: string;
+	readerMaxWidth: number;
+	readerAyahNumColor: string;
+	readerTafsirColor: string;
+	readerBismillahSize: number;
+	readerTitleSize: number;
+	readerHideScriptPicker: boolean;
+	readerHideFontPicker: boolean;
+	readerHideTafsirPicker: boolean;
+	readerHideSizeButtons: boolean;
+	readerHidePopout: boolean;
 }
 
 const DEFAULT_SETTINGS: FalahSettings = {
@@ -94,6 +104,16 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	fontByScript: { ...DEFAULT_FONT_BY_SCRIPT },
 	hadithSunnahApiKey: "",
 	bookmarksPath: "Falah/bookmarks.json",
+	readerMaxWidth: 720,
+	readerAyahNumColor: "",
+	readerTafsirColor: "",
+	readerBismillahSize: 1.4,
+	readerTitleSize: 1.3,
+	readerHideScriptPicker: false,
+	readerHideFontPicker: false,
+	readerHideTafsirPicker: false,
+	readerHideSizeButtons: false,
+	readerHidePopout: false,
 };
 
 export default class FalahPlugin extends Plugin {
@@ -169,6 +189,7 @@ export default class FalahPlugin extends Plugin {
 		// A saved fontByScript replaces the default map wholesale, so re-merge the
 		// per-script defaults underneath to back-fill any missing script.
 		this.settings.fontByScript = { ...DEFAULT_FONT_BY_SCRIPT, ...(data.settings?.fontByScript ?? {}) };
+		this.applyReaderTheme();
 		this.cache = new RefCache(data.cache ?? {}, () => void this.persist());
 
 		this.fonts = new FontManager(this.app, `${this.manifest.dir ?? ""}/fonts`);
@@ -403,6 +424,31 @@ export default class FalahPlugin extends Plugin {
 	refreshReaderRows(): void {
 		const leaf = this.findReaderLeaf();
 		if (leaf && leaf.view instanceof QuranReaderView) leaf.view.refreshRows();
+	}
+
+	/** Pushes the reader-theming settings onto `document.body` as the same CSS custom
+	 *  properties/classes `styles.css` already reads (`--falah-reader-*`,
+	 *  `falah-hide-*`) — pure CSS reactivity, no reader rebuild needed. Called once on
+	 *  load and again from the Reader settings zone after every change. */
+	applyReaderTheme(): void {
+		const s = this.settings;
+		const body = document.body;
+		const setVar = (name: string, value: string) => body.style.setProperty(name, value);
+		const clearVar = (name: string) => body.style.removeProperty(name);
+
+		setVar("--falah-reader-max-width", `${s.readerMaxWidth}px`);
+		if (s.readerAyahNumColor) setVar("--falah-reader-ayah-num-color", s.readerAyahNumColor);
+		else clearVar("--falah-reader-ayah-num-color");
+		if (s.readerTafsirColor) setVar("--falah-reader-tafsir-color", s.readerTafsirColor);
+		else clearVar("--falah-reader-tafsir-color");
+		setVar("--falah-reader-bismillah-size", `${s.readerBismillahSize}em`);
+		setVar("--falah-reader-title-size", `${s.readerTitleSize}em`);
+
+		body.toggleClass("falah-hide-script-picker", s.readerHideScriptPicker);
+		body.toggleClass("falah-hide-font-picker", s.readerHideFontPicker);
+		body.toggleClass("falah-hide-tafsir-picker", s.readerHideTafsirPicker);
+		body.toggleClass("falah-hide-size-buttons", s.readerHideSizeButtons);
+		body.toggleClass("falah-hide-popout", s.readerHidePopout);
 	}
 
 	async openReader(surah = 1, ayah?: number): Promise<void> {
