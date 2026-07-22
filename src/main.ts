@@ -53,6 +53,7 @@ import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
 import { FontManager, enumerateSystemFonts } from "./font-loader";
+import { BookmarkStoreService } from "./bookmarks/store";
 import {
 	VerseActionRegistry,
 	SlashItemRegistry,
@@ -112,6 +113,7 @@ export default class FalahPlugin extends Plugin {
 	ayahRowDecorators: AyahRowDecorator[] = [];
 	api!: FalahApi;
 	fonts!: FontManager;
+	bookmarks!: BookmarkStoreService;
 
 	registerVerseAction(action: VerseAction): () => void {
 		return this.verseActionRegistry.register(action);
@@ -227,6 +229,13 @@ export default class FalahPlugin extends Plugin {
 			navigateReaderTo: (s, a) => this.navigateReaderTo(s, a),
 			refreshReader: () => this.refreshReaderRows(),
 			ref: FALAH_REF,
+			bookmarks: {
+				list: () => this.bookmarks.list(),
+				has: (anchor, lens) => this.bookmarks.has(anchor, lens),
+				add: (input) => this.bookmarks.add(input),
+				remove: (id) => this.bookmarks.remove(id),
+			},
+			onBookmarksChanged: (cb) => this.bookmarks.onChange(cb),
 		};
 		// Announce a fresh API on every load — a disable/re-enable of Falah produces a
 		// NEW api object with empty registries, so companions must know to re-register.
