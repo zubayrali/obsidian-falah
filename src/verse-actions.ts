@@ -4,7 +4,7 @@
 // calling plugin.registerVerseAction(); nothing here or in the reader changes.
 
 import type FalahPlugin from "./main";
-import type { QuranRef } from "./ref";
+import { toUri, type QuranRef } from "./ref";
 import type { ResourceDescriptor } from "./data/schema";
 
 /** The slice of the reader that actions manipulate — implemented by QuranReaderView. */
@@ -53,6 +53,22 @@ export function tafsirMenuItems(installedTafsirs: ResourceDescriptor[], ctx: Ver
 /** The Phase-1 verse actions. Order here is the menu order. */
 export function defaultVerseActions(): VerseAction[] {
 	return [
+		{
+			id: "bookmark",
+			items(ctx) {
+				const anchor = toUri({ kind: "quran", surah: ctx.surah, ayah: ctx.ayah } as QuranRef);
+				const saved = ctx.plugin.bookmarks.has(anchor);
+				return [{
+					title: saved ? "Remove bookmark" : "Bookmark verse",
+					section: "falah-bookmark",
+					icon: saved ? "bookmark-minus" : "bookmark",
+					checked: saved,
+					onClick: () => saved
+						? ctx.plugin.bookmarks.remove(anchor)
+						: void ctx.plugin.bookmarks.add({ anchor }),
+				}];
+			},
+		},
 		{
 			id: "tafsir",
 			async items(ctx) {

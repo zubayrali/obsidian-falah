@@ -88,3 +88,26 @@ describe("defaultVerseActions", () => {
 		expect(openCapture.ref).toEqual({ kind: "quran", surah: 2, ayah: 255 });
 	});
 });
+
+describe("bookmark verse action", () => {
+	it("offers a checked toggle reflecting store state", async () => {
+		const action = defaultVerseActions().find((a) => a.id === "bookmark")!;
+		expect(action).toBeTruthy();
+		const added: string[] = [];
+		const ctx = {
+			surah: 2, ayah: 255, ayahKey: "2:255", arabic: "…",
+			plugin: {
+				bookmarks: {
+					has: () => false,
+					add: async (i: { anchor: string }) => { added.push(i.anchor); },
+					remove: async () => {},
+				},
+			},
+		} as any;
+		const items = await action.items(ctx);
+		expect(items[0].title).toMatch(/bookmark/i);
+		expect(items[0].checked).toBe(false);
+		await items[0].onClick!();
+		expect(added).toEqual(["falah://quran/2/255"]);
+	});
+});

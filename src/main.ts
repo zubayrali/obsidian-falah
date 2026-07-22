@@ -79,6 +79,7 @@ interface FalahSettings {
 	tafsirResourceId: string;
 	fontByScript: Record<string, string>;
 	hadithSunnahApiKey: string;
+	bookmarksPath: string;
 }
 
 const DEFAULT_SETTINGS: FalahSettings = {
@@ -89,6 +90,7 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	tafsirResourceId: "",
 	fontByScript: { ...DEFAULT_FONT_BY_SCRIPT },
 	hadithSunnahApiKey: "",
+	bookmarksPath: "Falah/bookmarks.json",
 };
 
 export default class FalahPlugin extends Plugin {
@@ -172,6 +174,9 @@ export default class FalahPlugin extends Plugin {
 		);
 
 		this.io = makeFileIO(this.app.vault.adapter, this.manifest.dir ?? "");
+		const vaultIo = makeFileIO(this.app.vault.adapter, "");
+		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
+		await this.bookmarks.load();
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
 		this.fetchJson = makeFetchJson(requestUrl);
