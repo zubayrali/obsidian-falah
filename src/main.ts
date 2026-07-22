@@ -49,6 +49,7 @@ import {
 } from "./data/hadith/sources";
 import type { HadithCatalogEntry } from "./data/hadith/schema";
 import { QuranReaderView, VIEW_TYPE_QURAN_READER } from "./reader";
+import { BookmarksView, VIEW_TYPE_BOOKMARKS } from "./bookmarks/view";
 import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
@@ -116,6 +117,7 @@ export default class FalahPlugin extends Plugin {
 	api!: FalahApi;
 	fonts!: FontManager;
 	bookmarks!: BookmarkStoreService;
+	hadithIndex!: InstallIndex;
 
 	registerVerseAction(action: VerseAction): () => void {
 		return this.verseActionRegistry.register(action);
@@ -201,13 +203,13 @@ export default class FalahPlugin extends Plugin {
 
 		// Hadith offline layer (generic content infra + isolated hadith domain).
 		const hadithStore = new ResourceStore(this.io);
-		const hadithIndex = new InstallIndex(this.io, "hdata/index.json");
+		this.hadithIndex = new InstallIndex(this.io, "hdata/index.json");
 		this.hadithFetchText = (url) =>
 			requestUrl({ url, throw: false }).then((r) => {
 				if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}`);
 				return r.text;
 			});
-		this.hadith = new HadithResolver(hadithStore, hadithIndex, new HadithCoreLoader(), {
+		this.hadith = new HadithResolver(hadithStore, this.hadithIndex, new HadithCoreLoader(), {
 			getHadith: (ref) => hadithProvider.getHadith(ref),
 		});
 		this.hadithSources = [
@@ -224,6 +226,7 @@ export default class FalahPlugin extends Plugin {
 		this.addSettingTab(new FalahSettingTab(this));
 
 		this.registerView(VIEW_TYPE_QURAN_READER, (leaf) => new QuranReaderView(leaf, this));
+		this.registerView(VIEW_TYPE_BOOKMARKS, (leaf) => new BookmarksView(leaf, this));
 		this.api = {
 			version: FALAH_API_VERSION,
 			registerVerseAction: (a) => this.registerVerseAction(a),
@@ -304,6 +307,13 @@ export default class FalahPlugin extends Plugin {
 			name: t().cmdRefreshReference,
 			editorCallback: (editor) => void this.refreshAtCursor(editor),
 		});
+
+		this.addRibbonIcon("bookmark", "Open bookmarks", () => void this.openBookmarks());
+		this.addCommand({
+			id: "open-bookmarks",
+			name: "Open bookmarks",
+			callback: () => void this.openBookmarks(),
+		});
 	}
 
 	async persist(): Promise<void> {
@@ -380,6 +390,23 @@ export default class FalahPlugin extends Plugin {
 		// reach into the view instance to navigate it.
 		await (leaf as WorkspaceLeaf & { loadIfDeferred?: () => Promise<void> }).loadIfDeferred?.();
 		if (leaf.view instanceof QuranReaderView) leaf.view.navigateTo(surah, ayah);
+	}
+
+	/** Open (or focus) the single Bookmarks view in the right sidebar. */
+	async openBookmarks(): Promise<void> {
+		const { workspace } = this.app;
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_BOOKMARKS)[0];
+		if (!leaf) {
+			leaf = workspace.getRightLeaf(false)!;
+			await leaf.setViewState({ type: VIEW_TYPE_BOOKMARKS, active: true });
+		}
+		workspace.revealLeaf(leaf);
+	}
+
+	/** Installed hadith collection ids, for the bookmarks view's availability
+	 *  snapshot (Task 3's resolveRow). */
+	async installedHadithCollections(): Promise<string[]> {
+		return (await this.hadithIndex.list()).map((e) => e.id);
 	}
 
 	async getDetail(ref: IslamicReference): Promise<ReferenceContent> {
