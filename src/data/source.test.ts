@@ -37,6 +37,8 @@ function makeQuranDataSource(ioSeed: Record<string, string> = {}) {
 		indopak: () => Promise.resolve({ default: [] as Ayah[] }),
 		clearquran: () => Promise.resolve({ default: clearQuran }),
 		surahs: () => Promise.resolve({ default: surahs }),
+		nav: () =>
+			Promise.resolve({ default: { juz: [], hizb: [], rub: [], pages: [], sajdahs: [], ruku: [] } }),
 	};
 	const registry = new Registry(io, store, new CoreLoader(imports));
 	return { source: new QuranDataSource(store, registry), io, registry };
@@ -450,6 +452,8 @@ function makeReadingSource(ioSeed: Record<string, string> = {}) {
 		indopak: () => Promise.resolve({ default: [] as Ayah[] }),
 		clearquran: () => Promise.resolve({ default: [] as TranslationVerse[] }),
 		surahs: () => Promise.resolve({ default: surahs }),
+		nav: () =>
+			Promise.resolve({ default: { juz: [], hizb: [], rub: [], pages: [], sajdahs: [], ruku: [] } }),
 	};
 	const registry = new Registry(io, store, new CoreLoader(imports));
 	return { source: new QuranDataSource(store, registry) };
@@ -521,6 +525,8 @@ function makeVerseTafsirSource(ioSeed: Record<string, string> = {}) {
 		indopak: () => Promise.resolve({ default: [] as Ayah[] }),
 		clearquran: () => Promise.resolve({ default: [] as TranslationVerse[] }),
 		surahs: () => Promise.resolve({ default: [] as Surah[] }),
+		nav: () =>
+			Promise.resolve({ default: { juz: [], hizb: [], rub: [], pages: [], sajdahs: [], ruku: [] } }),
 	};
 	const registry = new Registry(io, store, new CoreLoader(empty));
 	return new QuranDataSource(store, registry);

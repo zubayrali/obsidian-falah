@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CORE_CLEARQURAN_ID, CORE_INDOPAK_ID, CORE_UTHMANI_ID, CoreLoader } from "./core";
 import type { CoreImportMap } from "./core";
 import type { Ayah, Surah, TranslationVerse } from "./schema";
+import type { QuranNav } from "../nav/schema";
 
 function makeImports(): CoreImportMap {
 	const uthmaniAyahs: Ayah[] = [{ ayahKey: "1:1", surah: 1, ayah: 1, text: "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ" }];
@@ -18,11 +19,20 @@ function makeImports(): CoreImportMap {
 			revelationPlace: "makkah",
 		},
 	];
+	const nav: QuranNav = {
+		juz: [{ n: 1, surah: 1, ayah: 1 }],
+		hizb: [{ n: 1, surah: 1, ayah: 1 }],
+		rub: [{ n: 1, surah: 1, ayah: 1 }],
+		pages: [{ n: 1, surah: 1, ayah: 1 }],
+		sajdahs: [{ surah: 7, ayah: 206, type: "recommended" }],
+		ruku: [{ n: 1, surah: 1, ayah: 1 }],
+	};
 	return {
 		uthmani: vi.fn(() => Promise.resolve({ default: uthmaniAyahs })),
 		indopak: vi.fn(() => Promise.resolve({ default: [] as Ayah[] })),
 		clearquran: vi.fn(() => Promise.resolve({ default: clearQuran })),
 		surahs: vi.fn(() => Promise.resolve({ default: surahs })),
+		nav: vi.fn(() => Promise.resolve({ default: nav })),
 	};
 }
 
@@ -34,6 +44,7 @@ describe("CoreLoader", () => {
 		expect(imports.indopak).not.toHaveBeenCalled();
 		expect(imports.clearquran).not.toHaveBeenCalled();
 		expect(imports.surahs).not.toHaveBeenCalled();
+		expect(imports.nav).not.toHaveBeenCalled();
 	});
 
 	it("imports only the requested script, once, cached across calls", async () => {
@@ -58,6 +69,15 @@ describe("CoreLoader", () => {
 			{ ayahKey: "1:1", text: "In the Name of Allah—the Most Compassionate, Most Merciful." },
 		]);
 		expect((await loader.getSurahs())[0].nameEnglish).toBe("The Opening");
+	});
+
+	it("loads nav data and caches it across calls", async () => {
+		const imports = makeImports();
+		const loader = new CoreLoader(imports);
+		await loader.getNav();
+		const nav = await loader.getNav();
+		expect(nav.juz).toEqual([{ n: 1, surah: 1, ayah: 1 }]);
+		expect(imports.nav).toHaveBeenCalledTimes(1);
 	});
 
 	it("exposes static descriptors for the registry", () => {
