@@ -9,8 +9,8 @@ const surahs: Surah[] = [
 ];
 const pt = (n: number, s: number, a: number): NavPoint => ({ n, surah: s, ayah: a });
 const nav = {
-	juz: [pt(1, 1, 1), pt(2, 2, 142), pt(3, 2, 253)],
-	pages: [pt(1, 1, 1), pt(50, 2, 253)],
+	juz: [pt(1, 1, 1), pt(2, 2, 142), pt(3, 2, 253), pt(30, 78, 1)],
+	pages: [pt(1, 1, 1), pt(2, 1, 8), pt(50, 2, 253)],
 	hizb: [pt(1, 1, 1)], rub: [pt(1, 1, 1)],
 	sajdahs: [{ surah: 7, ayah: 206, type: "recommended" as const }],
 	ruku: [],
@@ -28,10 +28,10 @@ describe("resolveNav", () => {
 	it("surah name + ayah", () => expect(first("baqara 255")).toMatchObject({ surah: 2, ayah: 255 }));
 	it("juz number and name", () => {
 		expect(first("juz 3")).toMatchObject({ surah: 2, ayah: 253, kind: "juz" });
-		// "amma" is a recognised juz alias (juz 30); the 3-entry fixture nav
-		// doesn't contain juz 30, so we only assert the alias parses to a juz
-		// scheme lookup rather than a fixture hit (see task-3-brief note).
-		expect(resolveNav("juz amma", surahs, nav)).toEqual([]);
+		// "amma" is a recognised juz alias (juz 30); the fixture now has a
+		// real juz-30 point so this proves the alias FORM actually parses
+		// and resolves, not just that it doesn't crash.
+		expect(first("juz amma")).toMatchObject({ kind: "juz", surah: 78, ayah: 1 });
 	});
 	it("page", () => expect(first("page 50")).toMatchObject({ surah: 2, ayah: 253, kind: "page" }));
 	it("sajda lists the sajdah verses", () => {

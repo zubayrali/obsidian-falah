@@ -26,15 +26,6 @@ export function normalizeName(s: string): string {
 
 const point = (arr: NavPoint[], n: number) => arr.find((p) => p.n === n);
 
-/** Nearest point at or below n (arr assumed ascending by n). Used only for
- * the bare-N ambiguous "also offered as a page" fallback below — explicit
- * scheme queries (e.g. "page 50") always require an exact match; we never
- * silently guess the answer to an explicit query. In production `nav.pages`
- * is dense (1..604), so this only ever matters against a sparse/partial
- * dataset (e.g. tests). */
-const floorPoint = (arr: NavPoint[], n: number): NavPoint | undefined =>
-	arr.reduce<NavPoint | undefined>((best, p) => (p.n <= n && (!best || p.n > best.n) ? p : best), undefined);
-
 export function resolveNav(query: string, surahs: Surah[], nav: QuranNav): NavCandidate[] {
 	const q = query.trim();
 	if (!q) return [];
@@ -89,7 +80,7 @@ export function resolveNav(query: string, surahs: Surah[], nav: QuranNav): NavCa
 		if (n >= 1 && n <= 114 && !out.some((c) => c.surah === n && c.kind === "surah")) {
 			out.unshift({ surah: n, ayah: 1, kind: "surah", label: `${surahLabel(n)} ${n}`, sublabel: surahs.find((s) => s.number === n)?.nameArabic });
 		}
-		const pg = point(nav.pages, n) ?? floorPoint(nav.pages, n);
+		const pg = point(nav.pages, n);
 		if (pg) out.push({ surah: pg.surah, ayah: pg.ayah, kind: "page", label: `Page ${n}`, sublabel: `${surahLabel(pg.surah)} ${pg.surah}:${pg.ayah}` });
 	}
 
