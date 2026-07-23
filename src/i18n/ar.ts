@@ -36,4 +36,9 @@ export const ar: Partial<Strings> = {
     bookmarksRenameCollection: "إعادة تسمية المجموعة",
     bookmarksDeleteCollection: "حذف المجموعة",
     bookmarkMoveTo: "نقل إلى",
+    bookmarkFavourite: "مفضلة",
+    bookmarkUnfavourite: "إلغاء المفضلة",
+    bookmarkPromptCreate: "إنشاء",
+    bookmarkPromptRename: "إعادة تسمية",
+    bookmarkCollectionMenu: "خيارات المجموعة",
 };

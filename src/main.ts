@@ -211,6 +211,7 @@ export default class FalahPlugin extends Plugin {
 		const vaultIo = makeFileIO(this.app.vault.adapter, "");
 		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
 		await this.bookmarks.load();
+		this.bookmarks.setDefaultGroup(this.settings.bookmarkDefaultCollection);
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
 		this.fetchJson = makeFetchJson(requestUrl);
@@ -397,7 +398,7 @@ export default class FalahPlugin extends Plugin {
 	/** Prompts for a new collection name, creates it, and files this bookmark
 	 *  into it. Backs the verse action's "New collection…" submenu entry. */
 	async newCollectionFor(anchor: string, lens?: Lens): Promise<void> {
-		const name = await promptName(this.app, t().bookmarkNewCollectionPrompt);
+		const name = await promptName(this.app, t().bookmarkNewCollectionPrompt, "", t().bookmarkPromptCreate);
 		if (!name) return;
 		await this.bookmarks.createGroup(name);
 		await this.bookmarks.add({ anchor, lens, group: name });
@@ -1438,6 +1439,7 @@ class FalahSettingTab extends PluginSettingTab {
 				d.onChange(async (v) => {
 					this.plugin.settings.bookmarkDefaultCollection = v || "Bookmarks";
 					await this.plugin.persist();
+					this.plugin.bookmarks.setDefaultGroup(v || "Bookmarks");
 				});
 			});
 

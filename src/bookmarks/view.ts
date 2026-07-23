@@ -13,7 +13,6 @@ import { t } from "../i18n";
 import { resolveRow, type AvailabilitySnapshot, type Badge } from "./resolve";
 import { sortBookmarks, type BookmarkSort } from "./sort";
 import { promptName } from "./prompt";
-import { DEFAULT_BOOKMARK_GROUP } from "./store";
 import type { Bookmark, BookmarkGroup } from "./schema";
 
 export const VIEW_TYPE_BOOKMARKS = "falah-bookmarks";
@@ -81,7 +80,7 @@ export class BookmarksView extends ItemView {
 
 		const newBtn = root.createEl("button", { cls: "falah-bookmarks-new", text: `＋ ${t().bookmarksNewCollection}` });
 		newBtn.onclick = async () => {
-			const name = await promptName(this.app, t().bookmarksNewCollection);
+			const name = await promptName(this.app, t().bookmarksNewCollection, "", t().bookmarkPromptCreate);
 			if (name) await bm.createGroup(name);
 		};
 
@@ -102,7 +101,7 @@ export class BookmarksView extends ItemView {
 
 	private renderCollection(root: HTMLElement, group: BookmarkGroup, snap: AvailabilitySnapshot, sort: BookmarkSort): void {
 		const bm = this.plugin.bookmarks;
-		const isDefault = group.name === DEFAULT_BOOKMARK_GROUP;
+		const isDefault = group.name === bm.getDefaultGroup();
 
 		const wrap = root.createDiv({ cls: "falah-bookmark-collection" });
 		const head = wrap.createDiv({ cls: "falah-bookmark-collection-head" });
@@ -111,7 +110,11 @@ export class BookmarksView extends ItemView {
 		head.createSpan({ cls: "falah-bookmark-collection-count", text: `(${group.items.length})` });
 
 		if (!isDefault) {
-			const menuBtn = head.createEl("button", { cls: "falah-bookmark-collection-menu", text: "⋯" });
+			const menuBtn = head.createEl("button", {
+				cls: "falah-bookmark-collection-menu",
+				text: "⋯",
+				attr: { "aria-label": t().bookmarkCollectionMenu },
+			});
 			menuBtn.onclick = (e) => {
 				e.stopPropagation();
 				const menu = new Menu();
@@ -120,7 +123,7 @@ export class BookmarksView extends ItemView {
 						.setTitle(t().bookmarksRenameCollection)
 						.setIcon("pencil")
 						.onClick(async () => {
-							const name = await promptName(this.app, t().bookmarksRenameCollection, group.name);
+							const name = await promptName(this.app, t().bookmarksRenameCollection, group.name, t().bookmarkPromptRename);
 							if (name) await bm.renameGroup(group.id, name);
 						})
 				);
@@ -134,7 +137,16 @@ export class BookmarksView extends ItemView {
 			};
 		}
 
-		head.onclick = () => void bm.setCollapsed(group.id, !group.collapsed);
+		const toggleCollapsed = () => void bm.setCollapsed(group.id, !group.collapsed);
+		head.onclick = toggleCollapsed;
+		head.setAttribute("role", "button");
+		head.setAttribute("tabindex", "0");
+		head.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				toggleCollapsed();
+			}
+		});
 
 		if (group.collapsed) return;
 		for (const item of sortBookmarks(group.items, sort)) this.renderRow(wrap, item, snap);

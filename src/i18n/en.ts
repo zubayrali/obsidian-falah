@@ -243,6 +243,9 @@ export const en = {
 	bookmarkMoveTo: "Move to",
 	bookmarkFavourite: "Favourite",
 	bookmarkUnfavourite: "Unfavourite",
+	bookmarkPromptCreate: "Create",
+	bookmarkPromptRename: "Rename",
+	bookmarkCollectionMenu: "Collection options",
 };
 
 export type Strings = typeof en;

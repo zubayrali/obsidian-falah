@@ -12,12 +12,23 @@ export const DEFAULT_BOOKMARK_GROUP = "Bookmarks";
 export class BookmarkStoreService {
 	private store: BookmarkStore = emptyStore();
 	private listeners: Array<() => void> = [];
+	private defaultGroupName = DEFAULT_BOOKMARK_GROUP;
 
 	constructor(
 		private io: FileIO,
 		private path: string,
 		private now: () => number = () => Date.now(),
 	) {}
+
+	/** Configures which group name new bookmarks (and the undeletable/move
+	 *  target group) resolve to. Wired from settings.bookmarkDefaultCollection. */
+	setDefaultGroup(name: string): void {
+		this.defaultGroupName = name || DEFAULT_BOOKMARK_GROUP;
+	}
+
+	getDefaultGroup(): string {
+		return this.defaultGroupName;
+	}
 
 	async load(): Promise<void> {
 		this.store = (await this.io.exists(this.path))
@@ -46,8 +57,8 @@ export class BookmarkStoreService {
 		const idx = this.store.groups.findIndex((g) => g.id === id);
 		if (idx < 0) return;
 		const group = this.store.groups[idx];
-		if (group.name === DEFAULT_BOOKMARK_GROUP) return; // default is undeletable
-		const def = this.ensureGroup(DEFAULT_BOOKMARK_GROUP);
+		if (group.name === this.defaultGroupName) return; // default is undeletable
+		const def = this.ensureGroup(this.defaultGroupName);
 		def.items.push(...group.items);                    // move, never delete
 		this.store.groups.splice(this.store.groups.indexOf(group), 1);
 		await this.persist();
@@ -91,7 +102,10 @@ export class BookmarkStoreService {
 	ensureGroup(name: string): BookmarkGroup {
 		let g = this.store.groups.find((x) => x.name === name);
 		if (!g) {
-			g = { id: `g-${this.now()}-${this.store.groups.length}`, name, order: this.store.groups.length, items: [] };
+			const order = this.store.groups.length
+				? Math.max(...this.store.groups.map((x) => x.order)) + 1
+				: 0;
+			g = { id: `g-${this.now()}-${this.store.groups.length}`, name, order, items: [] };
 			this.store.groups.push(g);
 		}
 		return g;
@@ -101,7 +115,7 @@ export class BookmarkStoreService {
 		const id = bookmarkId(input.anchor, input.lens);
 		const existing = this.find(id);
 		if (existing) return existing;
-		const group = this.ensureGroup(input.group ?? DEFAULT_BOOKMARK_GROUP);
+		const group = this.ensureGroup(input.group ?? this.defaultGroupName);
 		const item: Bookmark = { id, anchor: input.anchor, lens: input.lens, note: input.note, added: this.now() };
 		group.items.push(item);
 		await this.persist();

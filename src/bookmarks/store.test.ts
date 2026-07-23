@@ -110,6 +110,54 @@ describe("BookmarkStoreService", () => {
 			expect(svc.list().find(g => g.name === "Bookmarks")!.items).toHaveLength(0);
 			expect(svc.list().find(g => g.id === target.id)!.items.map(i => i.anchor)).toContain("falah://quran/2/255");
 		});
+		it("moveItem preserves favourite status: item stays in favourites() and lands in the target group", async () => {
+			const b = await svc.add({ anchor: "falah://quran/2/255" });
+			await svc.setFavourite(b.anchor, true);
+			const target = await svc.createGroup("Duas");
+			await svc.moveItem(b.id, target.id);
+			expect(svc.favourites().map(i => i.anchor)).toContain("falah://quran/2/255");
+			expect(svc.list().find(g => g.id === target.id)!.items.map(i => i.anchor)).toContain("falah://quran/2/255");
+		});
+		it("ensureGroup assigns a fresh max+1 order, never colliding with a survivor after a delete", async () => {
+			await svc.createGroup("A"); // order 0
+			const b = await svc.createGroup("B"); // order 1
+			await svc.deleteGroup(b.id); // moves B's (empty) items into "Bookmarks", created at order 2
+			await svc.createGroup("C"); // must not collide with "A" (order 0) or "Bookmarks" (order 2)
+			const orders = svc.list().map(g => g.order);
+			expect(new Set(orders).size).toBe(orders.length); // all unique
+			expect(svc.list().find(g => g.name === "C")!.order).toBe(3);
+		});
+	});
+
+	describe("configurable default collection", () => {
+		it("add() with no group falls back to the configured default, not the hardcoded one", async () => {
+			svc.setDefaultGroup("Duas");
+			const b = await svc.add({ anchor: "falah://quran/2/255" });
+			expect(svc.list().find(g => g.items.some(i => i.id === b.id))!.name).toBe("Duas");
+		});
+		it("setFavourite's create-path lands in the configured default", async () => {
+			svc.setDefaultGroup("Duas");
+			await svc.setFavourite("falah://quran/3/3", true);
+			expect(svc.list().find(g => g.name === "Duas")!.items.map(i => i.anchor)).toContain("falah://quran/3/3");
+		});
+		it("deleteGroup refuses to delete the configured default group, even if it isn't named 'Bookmarks'", async () => {
+			svc.setDefaultGroup("Duas");
+			const duas = await svc.createGroup("Duas");
+			await svc.deleteGroup(duas.id);
+			expect(svc.list().some(g => g.name === "Duas")).toBe(true);
+		});
+		it("deleting the non-default 'Bookmarks' group is allowed and moves its items into the configured default", async () => {
+			svc.setDefaultGroup("Duas");
+			const bookmarks = await svc.createGroup("Bookmarks");
+			await svc.add({ anchor: "falah://quran/4/4", group: "Bookmarks" });
+			await svc.deleteGroup(bookmarks.id);
+			expect(svc.list().some(g => g.name === "Bookmarks")).toBe(false);
+			expect(svc.list().find(g => g.name === "Duas")!.items.map(i => i.anchor)).toContain("falah://quran/4/4");
+		});
+		it("without setDefaultGroup, default stays 'Bookmarks' (existing behaviour preserved)", async () => {
+			const b = await svc.add({ anchor: "falah://quran/5/5" });
+			expect(svc.list().find(g => g.items.some(i => i.id === b.id))!.name).toBe("Bookmarks");
+		});
 	});
 
 	describe("favourites", () => {
