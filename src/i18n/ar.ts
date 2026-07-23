@@ -10,12 +10,17 @@ export const ar: Partial<Strings> = {
     detailLoading: "جارٍ التحميل…",
     readerNoTranslation: "لا توجد ترجمة",
     readerNoTafsir: "لا يوجد تفسير",
+    readerJuzPrev: "‹ الجزء",
+    readerJuzNext: "الجزء ›",
+    readerJuzLabel: (n: number) => `الجزء ${n}`,
     detailTafsir: "تفسير",
     libraryRemoveButton: "إزالة",
     libraryCancelButton: "إلغاء",
     libraryRefreshButton: "تحديث",
     libraryInstallButton: "تثبيت",
     libraryLoading: "جارٍ التحميل…",
+
+    cmdJumpTo: "الانتقال إلى…",
 
     ribbonOpenBookmarks: "فتح العلامات المرجعية",
     cmdOpenBookmarks: "فتح العلامات المرجعية",

@@ -241,6 +241,13 @@ body.falah-hide-size-buttons .falah-reader-toolbar-size {
 body.falah-hide-popout .falah-reader-toolbar-popout {
 	display: none;
 }
+body.falah-hide-nav .falah-reader-toolbar-nav {
+	display: none;
+}
+.falah-reader-juz-label {
+	color: var(--text-muted);
+	white-space: nowrap;
+}
 /* Collapse the whole group when every control it contains is hidden, so no
  * empty divider is left dangling. */
 body.falah-hide-script-picker.falah-hide-font-picker .falah-reader-toolbar-cluster-script-font {

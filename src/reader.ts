@@ -12,6 +12,8 @@ import { parseAyahKey } from "./ref";
 import { bundledFontsForScript, dedupeFamilies } from "./fonts";
 import { errMsg } from "./providers";
 import { t } from "./i18n";
+import { juzOf } from "./nav/locate";
+import type { QuranNav } from "./nav/schema";
 
 export const VIEW_TYPE_QURAN_READER = "falah-quran-reader";
 
@@ -94,9 +96,10 @@ export class QuranReaderView extends ItemView implements VerseView {
 	async refresh(): Promise<void> {
 		if (!this.toolbarEl) return;
 		try {
-			const [surahs, resources] = await Promise.all([
+			const [surahs, resources, nav] = await Promise.all([
 				this.plugin.registry.core.getSurahs(),
 				this.plugin.quranData.listResources(),
+				this.plugin.registry.core.getNav(),
 			]);
 			// If the currently-selected translation/tafsir was just removed, reset it
 			// to "none" so the dropdown truly lands on "No …" and the body stops
@@ -111,7 +114,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 				this.state.tafsirId = "";
 				changed = true;
 			}
-			this.buildToolbar(surahs, resources);
+			this.buildToolbar(surahs, resources, nav);
 			if (changed) {
 				this.persistState();
 				await this.renderBody();
@@ -156,10 +159,12 @@ export class QuranReaderView extends ItemView implements VerseView {
 	private async render(): Promise<void> {
 		let surahs: Surah[];
 		let resources: ResourceDescriptor[];
+		let nav: QuranNav;
 		try {
-			[surahs, resources] = await Promise.all([
+			[surahs, resources, nav] = await Promise.all([
 				this.plugin.registry.core.getSurahs(),
 				this.plugin.quranData.listResources(),
+				this.plugin.registry.core.getNav(),
 			]);
 		} catch (e) {
 			this.toolbarEl.empty();
@@ -167,11 +172,20 @@ export class QuranReaderView extends ItemView implements VerseView {
 			this.bodyEl.createDiv({ cls: "falah-error", text: errMsg(e) });
 			return;
 		}
-		this.buildToolbar(surahs, resources);
+		this.buildToolbar(surahs, resources, nav);
 		await this.renderBody();
 	}
 
-	private buildToolbar(surahs: Surah[], resources: ResourceDescriptor[]): void {
+	/** Best-known current ayah for juz-boundary lookups (Step 3). The reader
+	 *  doesn't yet track precise scroll position, so this falls back to the
+	 *  selected/navigated-to ayah, or the surah's first ayah — good enough to
+	 *  step juz prev/next from the surah's start (precise scroll tracking is
+	 *  later Reading-Progress work). */
+	private currentAyah(): number {
+		return this.state.ayah ?? 1;
+	}
+
+	private buildToolbar(surahs: Surah[], resources: ResourceDescriptor[], nav: QuranNav): void {
 		const strings = t();
 		const toolbar = this.toolbarEl;
 		toolbar.empty();
@@ -186,7 +200,10 @@ export class QuranReaderView extends ItemView implements VerseView {
 
 		const surahSel = navGroup.createEl("select", { cls: "dropdown" });
 		for (const s of surahs) {
-			surahSel.createEl("option", { value: String(s.number), text: strings.readerSurahOption(s.number, s.nameEnglish) });
+			surahSel.createEl("option", {
+				value: String(s.number),
+				text: strings.readerSurahOption(s.number, s.nameEnglish, s.nameArabic),
+			});
 		}
 		surahSel.value = String(this.state.surah);
 		surahSel.onchange = () => this.goSurah(Number(surahSel.value));
@@ -194,6 +211,22 @@ export class QuranReaderView extends ItemView implements VerseView {
 		const next = navGroup.createEl("button", { text: "›", cls: "falah-reader-btn" });
 		next.disabled = this.state.surah >= 114;
 		next.onclick = () => this.goSurah(this.state.surah + 1);
+
+		const juzGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-nav" });
+		const cur = juzOf(nav, this.state.surah, this.currentAyah());
+		const jprev = juzGroup.createEl("button", { text: strings.readerJuzPrev, cls: "falah-reader-btn" });
+		jprev.disabled = !cur || cur.n <= 1;
+		jprev.onclick = () => {
+			const p = nav.juz[cur!.n - 1 - 1];
+			if (p) this.navigateTo(p.surah, p.ayah);
+		};
+		juzGroup.createSpan({ cls: "falah-reader-juz-label", text: strings.readerJuzLabel(cur?.n ?? 1) });
+		const jnext = juzGroup.createEl("button", { text: strings.readerJuzNext, cls: "falah-reader-btn" });
+		jnext.disabled = !cur || cur.n >= 30;
+		jnext.onclick = () => {
+			const p = nav.juz[cur!.n - 1 + 1];
+			if (p) this.navigateTo(p.surah, p.ayah);
+		};
 
 		const scriptFontGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-cluster-script-font" });
 		const scriptWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-script" });
@@ -279,7 +312,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 		collapseBtn.onclick = () => {
 			this.state.toolbarCollapsed = !this.state.toolbarCollapsed;
 			this.persistState();
-			this.buildToolbar(surahs, resources);
+			this.buildToolbar(surahs, resources, nav);
 		};
 	}
 

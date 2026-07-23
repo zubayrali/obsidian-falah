@@ -4,6 +4,7 @@
 // selects (e.g. Indo-Pak) is never materialized.
 
 import type { Ayah, ResourceDescriptor, Surah, TranslationVerse } from "./schema";
+import type { QuranNav } from "../nav/schema";
 
 export const CORE_UTHMANI_ID = "core-uthmani";
 export const CORE_INDOPAK_ID = "core-indopak";
@@ -49,6 +50,7 @@ export interface CoreImportMap {
 	indopak: () => Promise<JsonModule<Ayah[]>>;
 	clearquran: () => Promise<JsonModule<TranslationVerse[]>>;
 	surahs: () => Promise<JsonModule<Surah[]>>;
+	nav: () => Promise<JsonModule<QuranNav>>;
 }
 
 export class CoreLoader {
@@ -56,6 +58,7 @@ export class CoreLoader {
 	private indopak?: Promise<Ayah[]>;
 	private clearquran?: Promise<TranslationVerse[]>;
 	private surahs?: Promise<Surah[]>;
+	private nav?: Promise<QuranNav>;
 
 	constructor(private imports: CoreImportMap) {}
 
@@ -74,6 +77,10 @@ export class CoreLoader {
 		return (this.surahs ??= this.imports.surahs().then(unwrap));
 	}
 
+	getNav(): Promise<QuranNav> {
+		return (this.nav ??= this.imports.nav().then(unwrap));
+	}
+
 	listDescriptors(): ResourceDescriptor[] {
 		return BUNDLED_CORE_DESCRIPTORS;
 	}
@@ -88,4 +95,8 @@ export const defaultCoreImportMap: CoreImportMap = {
 	clearquran: () => import("../../assets/bundled-core/clearquran.json"),
 	surahs: () =>
 		import("../../assets/bundled-core/surahs.json") as unknown as Promise<{ default: Surah[] }>,
+	nav: () =>
+		import("../../assets/bundled-core/quran-nav.json") as unknown as Promise<{
+			default: QuranNav;
+		}>,
 };

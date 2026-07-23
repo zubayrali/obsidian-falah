@@ -197,6 +197,8 @@ function makeRegistryWithSurahs(surahs: Surah[]): { io: ReturnType<typeof makeFa
 		indopak: () => Promise.resolve({ default: [] as Ayah[] }),
 		clearquran: () => Promise.resolve({ default: [] as _TV[] }),
 		surahs: () => Promise.resolve({ default: surahs }),
+		nav: () =>
+			Promise.resolve({ default: { juz: [], hizb: [], rub: [], pages: [], sajdahs: [], ruku: [] } }),
 	};
 	const registry = new Registry(io, new DataStore(io), new CoreLoader(imports));
 	return { io, registry };

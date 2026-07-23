@@ -12,6 +12,10 @@ export default defineConfig(
 		// plugin — same category as the two build scripts above. It is a node
 		// script, so the mobile-safety rules here do not apply to it.
 		'assets/bundled-core/build.ts',
+		// Dev-only data-generation scripts (e.g. `node scripts/gen-quran-nav.mjs`),
+		// node scripts never shipped or executed by the plugin — same category as
+		// the build scripts above; outside tsconfig's src-only project.
+		'scripts/**',
 		'versions.json',
 		'main.js',
 		'package.json',

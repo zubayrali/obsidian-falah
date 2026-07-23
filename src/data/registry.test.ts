@@ -13,6 +13,8 @@ function makeCore(): CoreLoader {
 		indopak: () => Promise.resolve({ default: [] as Ayah[] }),
 		clearquran: () => Promise.resolve({ default: [] as TranslationVerse[] }),
 		surahs: () => Promise.resolve({ default: [] as Surah[] }),
+		nav: () =>
+			Promise.resolve({ default: { juz: [], hizb: [], rub: [], pages: [], sajdahs: [], ruku: [] } }),
 	};
 	return new CoreLoader(imports);
 }

@@ -48,6 +48,7 @@ export const en = {
 	cmdOpenDetail: "Open Islamic reference detail",
 	cmdCopyReferenceText: "Copy reference as text",
 	cmdRefreshReference: "Refresh Islamic reference under cursor",
+	cmdJumpTo: "Jump to…",
 
 	// -- Settings: section headings --
 	setHeadingCompanion: "Companion",
@@ -88,6 +89,8 @@ export const en = {
 	setReaderHideSizeButtonsDesc: "Removes the A−/A+ buttons from the reader toolbar.",
 	setReaderHidePopoutName: "Hide pop-out button",
 	setReaderHidePopoutDesc: "Removes the pop-out-window button from the reader toolbar.",
+	setReaderHideNavName: "Hide juz navigation",
+	setReaderHideNavDesc: "Removes the juz ‹ › prev/next controls from the reader toolbar.",
 
 	// -- Settings: Display zone --
 	setArabicScriptName: "Arabic script",
@@ -129,11 +132,15 @@ export const en = {
 	readerRemoveTafsirAriaLabel: "Remove tafsir",
 	readerNoVerseActions: "No verse actions available",
 	readerTafsirUnavailable: "Tafsir not available for this verse.",
-	readerSurahOption: (number: number, nameEnglish: string) => `${number} · ${nameEnglish}`,
+	readerSurahOption: (number: number, nameEnglish: string, nameArabic: string) =>
+		`${number} · ${nameEnglish} · ${nameArabic}`,
 	readerResourceDefault: (name: string) => `${name} (default)`,
 	readerSurahSubtitle: (nameArabic: string, ayahCount: number) => `${nameArabic} · ${ayahCount} ayahs`,
 	readerTafsirBlockTitle: (name: string) => `Tafsir · ${name}`,
 	readerTafsirThisVerse: (name: string) => `${name} (this verse)`,
+	readerJuzPrev: "‹ Juz",
+	readerJuzNext: "Juz ›",
+	readerJuzLabel: (n: number) => `Juz ${n}`,
 
 	// -- Detail --
 	detailLoading: "Loading…",
@@ -163,6 +170,7 @@ export const en = {
 	suggestCollectionCount: (count: number, tierOrLanguage: string) => `${count} hadith · ${tierOrLanguage}`,
 	suggestFilterCollectionPlaceholder: (name: string) => `Filter ${name} by number or text…`,
 	suggestInsertHonorificPlaceholder: "Insert honorific",
+	navJumpPlaceholder: "Jump to a surah, ayah, juz, page… (e.g. 2:255, baqara, juz 3, page 50)",
 
 	// -- Library / hadith (settings tab) --
 	libraryLoadResourcesError: (msg: string) => `Couldn't load installed resources: ${msg}`,
