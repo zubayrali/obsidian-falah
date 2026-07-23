@@ -72,3 +72,24 @@ describe("schema v2 favourite", () => {
 		expect(back.version).toBe(1); // preserved; a future breaking change can detect it
 	});
 });
+
+describe("schema recent list", () => {
+	it("recent round-trips", () => {
+		const store = {
+			version: BOOKMARKS_VERSION,
+			groups: [],
+			recent: [{ anchor: "falah://quran/2/255", at: 100 }, { anchor: "falah://quran/1/1", at: 90 }],
+		};
+		const back = parseStore(serializeStore(store));
+		expect(back.recent).toEqual(store.recent);
+	});
+	it("a store without recent parses (recent undefined)", () => {
+		const back = parseStore('{"version":2,"groups":[]}');
+		expect(back.recent).toBeUndefined();
+	});
+	it("a malformed recent is dropped, not thrown", () => {
+		const back = parseStore('{"version":2,"groups":[],"recent":"nope"}');
+		expect(back.recent).toBeUndefined();
+		expect(back.groups).toEqual([]);
+	});
+});
