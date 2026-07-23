@@ -62,8 +62,8 @@ describe("SlashItemRegistry", () => {
 	});
 });
 
-describe("api v5 bookmarks surface", () => {
-	it("version is 5", () => {
-		expect(FALAH_API_VERSION).toBe(5);
+describe("api v6 bookmarks surface", () => {
+	it("version is 6", () => {
+		expect(FALAH_API_VERSION).toBe(6);
 	});
 });

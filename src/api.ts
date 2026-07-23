@@ -7,7 +7,7 @@ import type { IslamicReference, QuranRef, RenderedText, FoundReference } from ".
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
 import type { BookmarkGroup, Bookmark, Lens } from "./bookmarks/schema";
 
-export const FALAH_API_VERSION = 5;
+export const FALAH_API_VERSION = 6;
 
 /** True when `id` is in the user's enabled-plugin set. Unlike reading
  *  `app.plugins.plugins[id]`, this is load-order independent: `enabledPlugins`
@@ -59,6 +59,14 @@ export interface FalahBookmarksApi {
 	add(input: { anchor: string; lens?: Lens; note?: string; group?: string }): Promise<Bookmark>;
 	/** Remove a bookmark by id. No-op if it doesn't exist. */
 	remove(id: string): Promise<void>;
+	/** Set/clear the favourite flag; creates the bookmark in the default collection if needed. Added in v6. */
+	setFavourite(anchor: string, on: boolean, lens?: Lens): Promise<void>;
+	/** All favourited bookmarks. Added in v6. */
+	favourites(): Bookmark[];
+	/** Create (or reuse) a collection by name. Added in v6. */
+	createCollection(name: string): Promise<BookmarkGroup>;
+	/** Move a bookmark into another collection. Added in v6. */
+	moveItem(id: string, toGroupId: string): Promise<void>;
 }
 
 export interface FalahApi {

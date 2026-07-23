@@ -89,24 +89,38 @@ describe("defaultVerseActions", () => {
 });
 
 describe("bookmark verse action", () => {
-	it("offers a checked toggle reflecting store state", async () => {
-		const action = defaultVerseActions().find((a) => a.id === "bookmark")!;
-		expect(action).toBeTruthy();
-		const added: string[] = [];
-		const ctx = {
+	function ctxWith(over: Record<string, unknown>) {
+		return {
 			surah: 2, ayah: 255, ayahKey: "2:255", arabic: "…",
 			plugin: {
+				settings: { bookmarkDefaultCollection: "Bookmarks" },
+				newCollectionFor: async () => {},
 				bookmarks: {
-					has: () => false,
-					add: async (i: { anchor: string }) => { added.push(i.anchor); },
-					remove: async () => {},
+					has: () => false, isFavourite: () => false,
+					add: async () => {}, remove: async () => {}, setFavourite: async () => {},
+					list: () => [{ id: "g1", name: "Juz Amma", order: 0, items: [] }],
+					...over,
 				},
 			},
 		} as unknown as VerseContext;
-		const items = await action.items(ctx);
-		expect(items[0].title).toMatch(/bookmark/i);
-		expect(items[0].checked).toBe(false);
-		await items[0].onClick!();
-		expect(added).toEqual(["falah://quran/2/255"]);
+	}
+	it("unsaved: offers quick-bookmark, a Bookmark-to submenu of collections + New, and a favourite toggle", async () => {
+		const added: Array<{ anchor: string; group?: string }> = [];
+		const action = defaultVerseActions().find((a) => a.id === "bookmark")!;
+		const items = await action.items(ctxWith({ add: async (i: { anchor: string; group?: string }) => { added.push(i); } }));
+		const titles = items.map((i) => i.title);
+		expect(titles.some((t) => /bookmark verse/i.test(t))).toBe(true);
+		const submenu = items.find((i) => i.submenu)!.submenu!;
+		expect(submenu.map((s) => s.title)).toEqual(expect.arrayContaining(["Juz Amma"]));
+		expect(submenu.some((s) => /new collection/i.test(s.title))).toBe(true);
+		await items.find((i) => i.title.match(/bookmark verse/i))!.onClick!();
+		expect(added[0]).toEqual({ anchor: "falah://quran/2/255", group: "Bookmarks" });
+		expect(items.some((i) => /favourit/i.test(i.title))).toBe(true);
+	});
+	it("saved: offers remove + favourite toggle", async () => {
+		const action = defaultVerseActions().find((a) => a.id === "bookmark")!;
+		const items = await action.items(ctxWith({ has: () => true }));
+		expect(items.some((i) => /remove bookmark/i.test(i.title))).toBe(true);
+		expect(items.some((i) => /favourit/i.test(i.title))).toBe(true);
 	});
 });

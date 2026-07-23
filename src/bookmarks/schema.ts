@@ -13,6 +13,7 @@ export interface Bookmark {
 	lens?: Lens;
 	note?: string;
 	added: number;
+	favourite?: boolean;
 }
 export interface BookmarkGroup {
 	id: string;
@@ -26,7 +27,7 @@ export interface BookmarkStore {
 	groups: BookmarkGroup[];
 }
 
-export const BOOKMARKS_VERSION = 1;
+export const BOOKMARKS_VERSION = 2;
 
 /** "" for no lens, else "tafsir:ar.ibnkathir" — stable, edition-level. */
 export function lensKey(lens?: Lens): string {

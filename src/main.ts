@@ -52,11 +52,14 @@ import { QuranReaderView, VIEW_TYPE_QURAN_READER } from "./reader";
 import { BookmarksView, VIEW_TYPE_BOOKMARKS } from "./bookmarks/view";
 import { exportMarkdown, importText } from "./bookmarks/markdown";
 import { resolveRow, type AvailabilitySnapshot } from "./bookmarks/resolve";
+import { promptName } from "./bookmarks/prompt";
+import type { Lens } from "./bookmarks/schema";
 import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
 import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
 import { FontManager, enumerateSystemFonts } from "./font-loader";
 import { BookmarkStoreService } from "./bookmarks/store";
+import type { BookmarkSort } from "./bookmarks/sort";
 import {
 	VerseActionRegistry,
 	SlashItemRegistry,
@@ -83,6 +86,9 @@ interface FalahSettings {
 	fontByScript: Record<string, string>;
 	hadithSunnahApiKey: string;
 	bookmarksPath: string;
+	bookmarkDefaultCollection: string;
+	bookmarkShowFavourites: boolean;
+	bookmarkSort: BookmarkSort;
 	readerMaxWidth: number;
 	readerAyahNumColor: string;
 	readerTafsirColor: string;
@@ -104,6 +110,9 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	fontByScript: { ...DEFAULT_FONT_BY_SCRIPT },
 	hadithSunnahApiKey: "",
 	bookmarksPath: "Falah/bookmarks.json",
+	bookmarkDefaultCollection: "Bookmarks",
+	bookmarkShowFavourites: true,
+	bookmarkSort: "added",
 	readerMaxWidth: 720,
 	readerAyahNumColor: "",
 	readerTafsirColor: "",
@@ -202,6 +211,7 @@ export default class FalahPlugin extends Plugin {
 		const vaultIo = makeFileIO(this.app.vault.adapter, "");
 		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
 		await this.bookmarks.load();
+		this.bookmarks.setDefaultGroup(this.settings.bookmarkDefaultCollection);
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
 		this.fetchJson = makeFetchJson(requestUrl);
@@ -265,6 +275,10 @@ export default class FalahPlugin extends Plugin {
 				has: (anchor, lens) => this.bookmarks.has(anchor, lens),
 				add: (input) => this.bookmarks.add(input),
 				remove: (id) => this.bookmarks.remove(id),
+				setFavourite: (anchor, on, lens) => this.bookmarks.setFavourite(anchor, on, lens),
+				favourites: () => this.bookmarks.favourites(),
+				createCollection: (name) => this.bookmarks.createGroup(name),
+				moveItem: (id, toGroupId) => this.bookmarks.moveItem(id, toGroupId),
 			},
 			onBookmarksChanged: (cb) => this.bookmarks.onChange(cb),
 		};
@@ -379,6 +393,15 @@ export default class FalahPlugin extends Plugin {
 		return new Promise((resolve) => {
 			new QuranSearchModal(this, resolve).open();
 		});
+	}
+
+	/** Prompts for a new collection name, creates it, and files this bookmark
+	 *  into it. Backs the verse action's "New collection…" submenu entry. */
+	async newCollectionFor(anchor: string, lens?: Lens): Promise<void> {
+		const name = await promptName(this.app, t().bookmarkNewCollectionPrompt, "", t().bookmarkPromptCreate);
+		if (!name) return;
+		await this.bookmarks.createGroup(name);
+		await this.bookmarks.add({ anchor, lens, group: name });
 	}
 
 	/** CSS font-family stack for the Quran Arabic of a given script. */
@@ -1400,6 +1423,48 @@ class FalahSettingTab extends PluginSettingTab {
 					await this.plugin.persist();
 				})
 			);
+
+		new Setting(details).setName(t().setHeadingBookmarks).setHeading();
+
+		new Setting(details)
+			.setName(t().setBookmarkDefaultCollectionName)
+			.setDesc(t().setBookmarkDefaultCollectionDesc)
+			.addDropdown((d) => {
+				const names = Array.from(new Set([
+					"Bookmarks",
+					...this.plugin.bookmarks.list().map((g) => g.name),
+				]));
+				for (const n of names) d.addOption(n, n);
+				d.setValue(this.plugin.settings.bookmarkDefaultCollection);
+				d.onChange(async (v) => {
+					this.plugin.settings.bookmarkDefaultCollection = v || "Bookmarks";
+					await this.plugin.persist();
+					this.plugin.bookmarks.setDefaultGroup(v || "Bookmarks");
+				});
+			});
+
+		new Setting(details)
+			.setName(t().setBookmarkShowFavouritesName)
+			.setDesc(t().setBookmarkShowFavouritesDesc)
+			.addToggle((tg) => tg
+				.setValue(this.plugin.settings.bookmarkShowFavourites)
+				.onChange(async (v) => {
+					this.plugin.settings.bookmarkShowFavourites = v;
+					await this.plugin.persist();
+				}));
+
+		new Setting(details)
+			.setName(t().setBookmarkSortName)
+			.addDropdown((d) => {
+				d.addOption("added", t().sortAddedLabel);
+				d.addOption("manual", t().sortManualLabel);
+				d.addOption("surah", t().sortSurahLabel);
+				d.setValue(this.plugin.settings.bookmarkSort);
+				d.onChange(async (v) => {
+					this.plugin.settings.bookmarkSort = v as BookmarkSort;
+					await this.plugin.persist();
+				});
+			});
 
 		new Setting(details)
 			.setName(t().setBookmarksPathName)
