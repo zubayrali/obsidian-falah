@@ -89,6 +89,7 @@ interface FalahSettings {
 	bookmarkDefaultCollection: string;
 	bookmarkShowFavourites: boolean;
 	bookmarkSort: BookmarkSort;
+	bookmarkRecentCount: number;
 	readerMaxWidth: number;
 	readerAyahNumColor: string;
 	readerTafsirColor: string;
@@ -113,6 +114,7 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	bookmarkDefaultCollection: "Bookmarks",
 	bookmarkShowFavourites: true,
 	bookmarkSort: "added",
+	bookmarkRecentCount: 5,
 	readerMaxWidth: 720,
 	readerAyahNumColor: "",
 	readerTafsirColor: "",
@@ -212,6 +214,7 @@ export default class FalahPlugin extends Plugin {
 		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
 		await this.bookmarks.load();
 		this.bookmarks.setDefaultGroup(this.settings.bookmarkDefaultCollection);
+		this.bookmarks.setRecentCap(this.settings.bookmarkRecentCount);
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
 		this.fetchJson = makeFetchJson(requestUrl);
@@ -1465,6 +1468,18 @@ class FalahSettingTab extends PluginSettingTab {
 					await this.plugin.persist();
 				});
 			});
+
+		new Setting(details)
+			.setName(t().setBookmarkRecentCountName)
+			.setDesc(t().setBookmarkRecentCountDesc)
+			.addText((tx) => tx
+				.setValue(String(this.plugin.settings.bookmarkRecentCount))
+				.onChange(async (v) => {
+					const n = Math.max(0, Math.floor(Number(v) || 0));
+					this.plugin.settings.bookmarkRecentCount = n;
+					this.plugin.bookmarks.setRecentCap(n);
+					await this.plugin.persist();
+				}));
 
 		new Setting(details)
 			.setName(t().setBookmarksPathName)
