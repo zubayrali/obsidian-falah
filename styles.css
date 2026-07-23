@@ -578,6 +578,78 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 	outline-offset: 1px;
 }
 
+.falah-bookmarks-recent-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-2-2);
+	margin: var(--size-4-4) 0 var(--size-2-2);
+}
+.falah-bookmarks-recent-title {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.falah-bookmarks-recent-clear {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	font-size: var(--font-ui-smaller);
+	padding: 0 var(--size-2-2);
+}
+.falah-bookmarks-recent-clear:hover {
+	color: var(--text-normal);
+}
+.falah-bookmarks-recent-clear:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.falah-bookmark-recent-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) var(--size-2-3);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+.falah-bookmark-recent-row:hover {
+	background: var(--background-modifier-hover);
+}
+.falah-bookmark-recent-row:hover .falah-bookmark-recent-save {
+	opacity: 1;
+}
+.falah-bookmark-recent-row .falah-bookmark-main {
+	cursor: pointer;
+}
+.falah-bookmark-recent-row .falah-bookmark-label {
+	color: inherit;
+}
+.falah-bookmark-recent-save {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.1s ease;
+	font-size: var(--font-ui-smaller);
+	padding: 0 var(--size-2-2);
+	white-space: nowrap;
+}
+.falah-bookmark-recent-save:hover {
+	color: var(--text-normal);
+}
+.falah-bookmark-recent-save:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 /* Settings tab — left-nav tabbed shell */
 .falah-settings-shell {
 	display: flex;

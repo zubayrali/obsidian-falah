@@ -180,4 +180,85 @@ describe("BookmarkStoreService", () => {
 			expect(svc.has("falah://quran/9/9")).toBe(false);
 		});
 	});
+
+	describe("recent list", () => {
+		let rio: ReturnType<typeof memIO>;
+		let r: BookmarkStoreService;
+		beforeEach(async () => {
+			rio = memIO();
+			r = new BookmarkStoreService(rio, "Falah/bookmarks.json", () => 100, 5); // 5ms debounce
+			await r.load();
+			r.setRecentCap(3);
+		});
+
+		it("pushRecent updates memory immediately, newest-first, deduped", () => {
+			r.pushRecent("falah://quran/1/1");
+			r.pushRecent("falah://quran/2/255");
+			r.pushRecent("falah://quran/1/1"); // revisit → moves to front, no dup
+			expect(r.listRecent().map((e) => e.anchor)).toEqual([
+				"falah://quran/1/1", "falah://quran/2/255",
+			]);
+		});
+		it("caps at the configured count", () => {
+			["1/1", "1/2", "1/3", "1/4"].forEach((s) => r.pushRecent(`falah://quran/${s}`));
+			expect(r.listRecent()).toHaveLength(3);
+			expect(r.listRecent()[0].anchor).toBe("falah://quran/1/4");
+		});
+		it("cap 0 disables recording", () => {
+			r.setRecentCap(0);
+			r.pushRecent("falah://quran/1/1");
+			expect(r.listRecent()).toHaveLength(0);
+		});
+		it("flush persists pending recent to disk", async () => {
+			r.pushRecent("falah://quran/2/255");
+			expect(rio.files["Falah/bookmarks.json"]).toBeUndefined(); // debounced, not yet written
+			await r.flush();
+			expect(rio.files["Falah/bookmarks.json"]).toContain("falah://quran/2/255");
+		});
+		it("clearRecent empties the list and persists immediately", async () => {
+			r.pushRecent("falah://quran/1/1");
+			await r.clearRecent();
+			expect(r.listRecent()).toHaveLength(0);
+			expect(rio.files["Falah/bookmarks.json"]).toContain('"recent": []');
+		});
+		it("pushRecent fires onChange for live view updates", () => {
+			let fired = 0;
+			r.onChange(() => fired++);
+			r.pushRecent("falah://quran/1/1");
+			expect(fired).toBe(1);
+		});
+
+		it("an intentional mutation persists pending in-memory recent (rides along on the write)", async () => {
+			const longIo = memIO();
+			const long = new BookmarkStoreService(longIo, "Falah/bookmarks.json", () => 100, 60_000); // long debounce
+			await long.load();
+			long.setRecentCap(5);
+
+			long.pushRecent("falah://quran/1/1"); // debounced; file not yet written
+			expect(longIo.files["Falah/bookmarks.json"]).toBeUndefined();
+
+			await long.add({ anchor: "falah://quran/2/255" }); // intentional persist
+			expect(longIo.files["Falah/bookmarks.json"]).toContain("falah://quran/1/1");
+		});
+
+		it("recent ops leave groups untouched", () => {
+			r.pushRecent("falah://quran/1/1");
+			expect(r.list()).toEqual([]);
+		});
+
+		it("group ops leave the recent list untouched", async () => {
+			r.pushRecent("falah://quran/1/1");
+			await r.createGroup("Duas");
+			expect(r.listRecent().map((e) => e.anchor)).toEqual(["falah://quran/1/1"]);
+		});
+
+		it("setRecentCap truncates an existing longer list, keeping the newest", () => {
+			r.setRecentCap(5);
+			["1/1", "1/2", "1/3", "1/4"].forEach((s) => r.pushRecent(`falah://quran/${s}`));
+			expect(r.listRecent()).toHaveLength(4);
+			r.setRecentCap(2);
+			expect(r.listRecent()).toHaveLength(2);
+			expect(r.listRecent()[0].anchor).toBe("falah://quran/1/4");
+		});
+	});
 });

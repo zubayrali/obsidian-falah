@@ -89,6 +89,7 @@ interface FalahSettings {
 	bookmarkDefaultCollection: string;
 	bookmarkShowFavourites: boolean;
 	bookmarkSort: BookmarkSort;
+	bookmarkRecentCount: number;
 	readerMaxWidth: number;
 	readerAyahNumColor: string;
 	readerTafsirColor: string;
@@ -113,6 +114,7 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	bookmarkDefaultCollection: "Bookmarks",
 	bookmarkShowFavourites: true,
 	bookmarkSort: "added",
+	bookmarkRecentCount: 5,
 	readerMaxWidth: 720,
 	readerAyahNumColor: "",
 	readerTafsirColor: "",
@@ -182,6 +184,7 @@ export default class FalahPlugin extends Plugin {
 		}
 	}
 	navigateReaderTo(surah: number, ayah: number): void {
+		this.recordRecent(toUri({ kind: "quran", surah, ayah }));
 		void this.openReader().then(() => {
 			const leaf = this.findReaderLeaf();
 			const view = leaf?.view;
@@ -212,6 +215,7 @@ export default class FalahPlugin extends Plugin {
 		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
 		await this.bookmarks.load();
 		this.bookmarks.setDefaultGroup(this.settings.bookmarkDefaultCollection);
+		this.bookmarks.setRecentCap(this.settings.bookmarkRecentCount);
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
 		this.fetchJson = makeFetchJson(requestUrl);
@@ -383,7 +387,17 @@ export default class FalahPlugin extends Plugin {
 	}
 
 	openDetail(ref: IslamicReference): void {
+		this.recordRecent(toUri(ref));
 		new ReferenceDetailModal(this, ref).open();
+	}
+
+	/** Record an explicit read as a Recent entry (debounced persist in the store). */
+	recordRecent(anchor: string): void {
+		this.bookmarks.pushRecent(anchor);
+	}
+
+	onunload(): void {
+		void this.bookmarks?.flush();
 	}
 
 	/** Ask the user to choose a verse, via the same search modal `/quran` uses.
@@ -475,6 +489,7 @@ export default class FalahPlugin extends Plugin {
 	}
 
 	async openReader(surah = 1, ayah?: number): Promise<void> {
+		if (ayah !== undefined) this.recordRecent(toUri({ kind: "quran", surah, ayah }));
 		const { workspace } = this.app;
 		let leaf = this.findReaderLeaf();
 		if (!leaf) {
@@ -1465,6 +1480,18 @@ class FalahSettingTab extends PluginSettingTab {
 					await this.plugin.persist();
 				});
 			});
+
+		new Setting(details)
+			.setName(t().setBookmarkRecentCountName)
+			.setDesc(t().setBookmarkRecentCountDesc)
+			.addText((tx) => tx
+				.setValue(String(this.plugin.settings.bookmarkRecentCount))
+				.onChange(async (v) => {
+					const n = Math.max(0, Math.floor(Number(v) || 0));
+					this.plugin.settings.bookmarkRecentCount = n;
+					this.plugin.bookmarks.setRecentCap(n);
+					await this.plugin.persist();
+				}));
 
 		new Setting(details)
 			.setName(t().setBookmarksPathName)

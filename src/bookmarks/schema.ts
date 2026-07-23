@@ -22,9 +22,14 @@ export interface BookmarkGroup {
 	collapsed?: boolean;
 	items: Bookmark[];
 }
+export interface RecentEntry {
+	anchor: string;
+	at: number;
+}
 export interface BookmarkStore {
 	version: number;
 	groups: BookmarkGroup[];
+	recent?: RecentEntry[];
 }
 
 export const BOOKMARKS_VERSION = 2;
@@ -55,12 +60,17 @@ export function parseStore(json: string): BookmarkStore {
 		if (!raw || typeof raw !== "object") return emptyStore();
 		const groups = (raw as { groups?: unknown }).groups;
 		if (!Array.isArray(groups)) return emptyStore();
-		return {
+		const recentRaw = (raw as { recent?: unknown }).recent;
+		const result: BookmarkStore = {
 			version: typeof (raw as { version?: unknown }).version === "number"
 				? (raw as { version: number }).version
 				: BOOKMARKS_VERSION,
 			groups: groups.filter(isGroup),
 		};
+		if (Array.isArray(recentRaw)) {
+			result.recent = recentRaw.filter(isRecent);
+		}
+		return result;
 	} catch {
 		return emptyStore();
 	}
@@ -71,6 +81,12 @@ function isGroup(g: unknown): g is BookmarkGroup {
 	const x = g as Record<string, unknown>;
 	return typeof x.id === "string" && typeof x.name === "string"
 		&& typeof x.order === "number" && Array.isArray(x.items);
+}
+
+function isRecent(r: unknown): r is RecentEntry {
+	if (!r || typeof r !== "object") return false;
+	const x = r as Record<string, unknown>;
+	return typeof x.anchor === "string" && typeof x.at === "number";
 }
 
 export function findBookmark(

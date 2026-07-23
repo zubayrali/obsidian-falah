@@ -8,12 +8,12 @@
 import { ItemView, Menu } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
 import type FalahPlugin from "../main";
-import { parseRefUri } from "../ref";
+import { parseRefUri, toLabel } from "../ref";
 import { t } from "../i18n";
 import { resolveRow, type AvailabilitySnapshot, type Badge } from "./resolve";
 import { sortBookmarks, type BookmarkSort } from "./sort";
 import { promptName } from "./prompt";
-import type { Bookmark, BookmarkGroup } from "./schema";
+import type { Bookmark, BookmarkGroup, RecentEntry } from "./schema";
 
 export const VIEW_TYPE_BOOKMARKS = "falah-bookmarks";
 
@@ -52,7 +52,11 @@ export class BookmarksView extends ItemView {
 	}
 
 	private openAnchor(item: Bookmark): void {
-		const ref = parseRefUri(item.anchor);
+		this.openRef(item.anchor);
+	}
+
+	private openRef(anchor: string): void {
+		const ref = parseRefUri(anchor);
 		if (!ref) return;
 		if (ref.kind === "quran") void this.plugin.openReader(ref.surah, ref.ayah);
 		else this.plugin.openDetail(ref);
@@ -84,7 +88,11 @@ export class BookmarksView extends ItemView {
 			if (name) await bm.createGroup(name);
 		};
 
-		if (!groups.length) {
+		// Recent is stored independently of collections, so it must not be
+		// gated behind "there is at least one collection" below.
+		const recent = this.plugin.settings.bookmarkRecentCount > 0 ? bm.listRecent() : [];
+
+		if (!groups.length && !recent.length) {
 			root.createDiv({ cls: "falah-bookmarks-empty", text: t().bookmarksEmpty });
 			return;
 		}
@@ -92,6 +100,19 @@ export class BookmarksView extends ItemView {
 		if (this.plugin.settings.bookmarkShowFavourites && bm.favourites().length) {
 			root.createEl("h3", { cls: "falah-bookmarks-favourites-head", text: t().bookmarksFavouritesHeading });
 			for (const item of sortBookmarks(bm.favourites(), sort)) this.renderRow(root, item, snap);
+		}
+
+		if (recent.length) {
+			const recentHead = root.createDiv({ cls: "falah-bookmarks-recent-head" });
+			recentHead.createEl("h3", { cls: "falah-bookmarks-recent-title", text: t().bookmarksRecentHeading });
+			const clearBtn = recentHead.createEl("button", {
+				cls: "falah-bookmarks-recent-clear",
+				text: t().bookmarksRecentClear,
+			});
+			clearBtn.onclick = () => void bm.clearRecent();
+			// Rendered read-only, in the store's own newest-first order — never
+			// sorted or mutated (this is the store's internal array).
+			for (const entry of recent) this.renderRecentRow(root, entry);
 		}
 
 		for (const group of groups) {
@@ -206,6 +227,30 @@ export class BookmarksView extends ItemView {
 					.onClick(() => void bm.remove(item.id))
 			);
 			menu.showAtMouseEvent(e);
+		};
+	}
+
+	/** Recent rows are time-ordered, unmanaged pointers — no star/note/collection
+	 *  actions, just a label to open and a way to promote the anchor into a
+	 *  collection. Kept separate from renderRow, which expects a Bookmark. */
+	private renderRecentRow(root: HTMLElement, entry: RecentEntry): void {
+		const bm = this.plugin.bookmarks;
+		const ref = parseRefUri(entry.anchor);
+		const label = ref ? toLabel(ref) : entry.anchor;
+
+		const row = root.createDiv({ cls: "falah-bookmark-recent-row" });
+
+		const main = row.createDiv({ cls: "falah-bookmark-main" });
+		main.createSpan({ cls: "falah-bookmark-label", text: label });
+		main.onClickEvent(() => this.openRef(entry.anchor));
+
+		const saveBtn = row.createEl("button", {
+			cls: "falah-bookmark-recent-save",
+			text: `＋ ${t().bookmarksRecentSave}`,
+		});
+		saveBtn.onclick = async () => {
+			const name = await promptName(this.app, t().bookmarksNewCollection, "", t().bookmarkPromptCreate);
+			if (name) await bm.add({ anchor: entry.anchor, group: name });
 		};
 	}
 
