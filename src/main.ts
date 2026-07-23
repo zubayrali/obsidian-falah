@@ -101,6 +101,7 @@ interface FalahSettings {
 	readerHideTafsirPicker: boolean;
 	readerHideSizeButtons: boolean;
 	readerHidePopout: boolean;
+	readerHideNav: boolean;
 }
 
 const DEFAULT_SETTINGS: FalahSettings = {
@@ -126,6 +127,7 @@ const DEFAULT_SETTINGS: FalahSettings = {
 	readerHideTafsirPicker: false,
 	readerHideSizeButtons: false,
 	readerHidePopout: false,
+	readerHideNav: false,
 };
 
 export default class FalahPlugin extends Plugin {
@@ -492,6 +494,7 @@ export default class FalahPlugin extends Plugin {
 		body.toggleClass("falah-hide-tafsir-picker", s.readerHideTafsirPicker);
 		body.toggleClass("falah-hide-size-buttons", s.readerHideSizeButtons);
 		body.toggleClass("falah-hide-popout", s.readerHidePopout);
+		body.toggleClass("falah-hide-nav", s.readerHideNav);
 	}
 
 	async openReader(surah = 1, ayah?: number): Promise<void> {
@@ -1020,6 +1023,7 @@ class FalahSettingTab extends PluginSettingTab {
 				| "readerHideTafsirPicker"
 				| "readerHideSizeButtons"
 				| "readerHidePopout"
+				| "readerHideNav"
 		) => {
 			new Setting(containerEl)
 				.setName(name)
@@ -1038,6 +1042,7 @@ class FalahSettingTab extends PluginSettingTab {
 		hideToggle(t().setReaderHideTafsirPickerName, t().setReaderHideTafsirPickerDesc, "readerHideTafsirPicker");
 		hideToggle(t().setReaderHideSizeButtonsName, t().setReaderHideSizeButtonsDesc, "readerHideSizeButtons");
 		hideToggle(t().setReaderHidePopoutName, t().setReaderHidePopoutDesc, "readerHidePopout");
+		hideToggle(t().setReaderHideNavName, t().setReaderHideNavDesc, "readerHideNav");
 	}
 
 	private renderLibraryZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
