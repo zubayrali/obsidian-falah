@@ -104,7 +104,7 @@ export class BookmarksView extends ItemView {
 
 		if (recent.length) {
 			const recentHead = root.createDiv({ cls: "falah-bookmarks-recent-head" });
-			recentHead.createSpan({ cls: "falah-bookmarks-recent-title", text: t().bookmarksRecentHeading });
+			recentHead.createEl("h3", { cls: "falah-bookmarks-recent-title", text: t().bookmarksRecentHeading });
 			const clearBtn = recentHead.createEl("button", {
 				cls: "falah-bookmarks-recent-clear",
 				text: t().bookmarksRecentClear,
@@ -248,7 +248,7 @@ export class BookmarksView extends ItemView {
 			cls: "falah-bookmark-recent-save",
 			text: `＋ ${t().bookmarksRecentSave}`,
 		});
-		saveBtn.onclick = async (e) => {
+		saveBtn.onclick = async () => {
 			const name = await promptName(this.app, t().bookmarksNewCollection, "", t().bookmarkPromptCreate);
 			if (name) await bm.add({ anchor: entry.anchor, group: name });
 		};
