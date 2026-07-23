@@ -184,6 +184,7 @@ export default class FalahPlugin extends Plugin {
 		}
 	}
 	navigateReaderTo(surah: number, ayah: number): void {
+		this.recordRecent(toUri({ kind: "quran", surah, ayah }));
 		void this.openReader().then(() => {
 			const leaf = this.findReaderLeaf();
 			const view = leaf?.view;
@@ -386,7 +387,17 @@ export default class FalahPlugin extends Plugin {
 	}
 
 	openDetail(ref: IslamicReference): void {
+		this.recordRecent(toUri(ref));
 		new ReferenceDetailModal(this, ref).open();
+	}
+
+	/** Record an explicit read as a Recent entry (debounced persist in the store). */
+	recordRecent(anchor: string): void {
+		this.bookmarks.pushRecent(anchor);
+	}
+
+	onunload(): void {
+		void this.bookmarks?.flush();
 	}
 
 	/** Ask the user to choose a verse, via the same search modal `/quran` uses.
@@ -478,6 +489,7 @@ export default class FalahPlugin extends Plugin {
 	}
 
 	async openReader(surah = 1, ayah?: number): Promise<void> {
+		if (ayah !== undefined) this.recordRecent(toUri({ kind: "quran", surah, ayah }));
 		const { workspace } = this.app;
 		let leaf = this.findReaderLeaf();
 		if (!leaf) {

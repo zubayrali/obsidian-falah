@@ -531,6 +531,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 	}
 
 	async onClose(): Promise<void> {
+		void this.plugin.bookmarks.flush();
 		this.contentEl.empty();
 	}
 }
