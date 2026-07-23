@@ -249,12 +249,8 @@ export class BookmarksView extends ItemView {
 			text: `＋ ${t().bookmarksRecentSave}`,
 		});
 		saveBtn.onclick = async (e) => {
-			e.stopPropagation();
 			const name = await promptName(this.app, t().bookmarksNewCollection, "", t().bookmarkPromptCreate);
-			if (name) {
-				await bm.createGroup(name);
-				await bm.add({ anchor: entry.anchor, group: name });
-			}
+			if (name) await bm.add({ anchor: entry.anchor, group: name });
 		};
 	}
 
