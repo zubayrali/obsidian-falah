@@ -17,6 +17,8 @@ export const ar: Partial<Strings> = {
     libraryInstallButton: "تثبيت",
     libraryLoading: "جارٍ التحميل…",
 
+    cmdJumpTo: "الانتقال إلى…",
+
     ribbonOpenBookmarks: "فتح العلامات المرجعية",
     cmdOpenBookmarks: "فتح العلامات المرجعية",
     bookmarksViewTitle: "العلامات المرجعية",

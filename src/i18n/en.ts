@@ -48,6 +48,7 @@ export const en = {
 	cmdOpenDetail: "Open Islamic reference detail",
 	cmdCopyReferenceText: "Copy reference as text",
 	cmdRefreshReference: "Refresh Islamic reference under cursor",
+	cmdJumpTo: "Jump to…",
 
 	// -- Settings: section headings --
 	setHeadingCompanion: "Companion",
@@ -163,6 +164,7 @@ export const en = {
 	suggestCollectionCount: (count: number, tierOrLanguage: string) => `${count} hadith · ${tierOrLanguage}`,
 	suggestFilterCollectionPlaceholder: (name: string) => `Filter ${name} by number or text…`,
 	suggestInsertHonorificPlaceholder: "Insert honorific",
+	navJumpPlaceholder: "Jump to a surah, ayah, juz, page… (e.g. 2:255, baqara, juz 3, page 50)",
 
 	// -- Library / hadith (settings tab) --
 	libraryLoadResourcesError: (msg: string) => `Couldn't load installed resources: ${msg}`,

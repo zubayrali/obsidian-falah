@@ -18,6 +18,7 @@ import { AlQuranCloudProvider, HadithCdnProvider, errMsg } from "./providers";
 import { logMessage } from "./log";
 import { t } from "./i18n";
 import { HadithCollectionPickerModal, HonorificModal, QuranSearchModal, SlashSuggest } from "./suggest";
+import { NavigateModal } from "./nav/navigate-modal";
 import { livePreviewChips } from "./decorations";
 import { falahPostProcessor } from "./postprocess";
 import { ReferenceDetailModal } from "./detail";
@@ -305,6 +306,11 @@ export default class FalahPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "jump-to",
+			name: t().cmdJumpTo,
+			callback: () => new NavigateModal(this).open(),
+		});
 		this.addCommand({
 			id: "insert-quran",
 			name: t().cmdInsertQuran,
