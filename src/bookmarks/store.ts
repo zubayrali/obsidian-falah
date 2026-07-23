@@ -4,7 +4,7 @@
 import type { FileIO } from "../data/store";
 import {
 	bookmarkId, emptyStore, parseStore, serializeStore,
-	type BookmarkStore, type BookmarkGroup, type Bookmark, type Lens,
+	type BookmarkStore, type BookmarkGroup, type Bookmark, type Lens, type RecentEntry,
 } from "./schema";
 
 export const DEFAULT_BOOKMARK_GROUP = "Bookmarks";
@@ -18,7 +18,12 @@ export class BookmarkStoreService {
 		private io: FileIO,
 		private path: string,
 		private now: () => number = () => Date.now(),
+		private recentDebounceMs = 3000,
 	) {}
+
+	private recentCap = 5;
+	private recentTimer: ReturnType<typeof setTimeout> | null = null;
+	private recentDirty = false;
 
 	/** Configures which group name new bookmarks (and the undeletable/move
 	 *  target group) resolve to. Wired from settings.bookmarkDefaultCollection. */
@@ -145,6 +150,39 @@ export class BookmarkStoreService {
 
 	favourites(): Bookmark[] {
 		return this.store.groups.flatMap((g) => g.items).filter((i) => i.favourite);
+	}
+
+	setRecentCap(n: number): void {
+		this.recentCap = Math.max(0, n);
+	}
+
+	listRecent(): RecentEntry[] {
+		return this.store.recent ?? [];
+	}
+
+	pushRecent(anchor: string): void {
+		if (this.recentCap <= 0) return;
+		const recent = this.store.recent ?? (this.store.recent = []);
+		const i = recent.findIndex((e) => e.anchor === anchor);
+		if (i >= 0) recent.splice(i, 1);
+		recent.unshift({ anchor, at: this.now() });
+		if (recent.length > this.recentCap) recent.length = this.recentCap;
+		this.recentDirty = true;
+		for (const cb of this.listeners) cb();          // live view update
+		if (this.recentTimer) clearTimeout(this.recentTimer);
+		this.recentTimer = setTimeout(() => { this.recentTimer = null; void this.flush(); }, this.recentDebounceMs);
+	}
+
+	async clearRecent(): Promise<void> {
+		this.store.recent = [];
+		this.recentDirty = false;
+		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
+		await this.persist();
+	}
+
+	async flush(): Promise<void> {
+		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
+		if (this.recentDirty) { this.recentDirty = false; await this.persist(); }
 	}
 
 	onChange(cb: () => void): () => void {
