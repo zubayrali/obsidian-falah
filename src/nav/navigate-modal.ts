@@ -19,6 +19,10 @@ export class NavigateModal extends SuggestModal<NavCandidate> {
 			([s, n]) => {
 				this.surahs = s;
 				this.nav = n;
+				// If the user already typed a query before this load resolved,
+				// getSuggestions() would have returned [] (this.nav was undefined).
+				// Nudge Obsidian to re-run suggestions now that data is available.
+				if (this.inputEl && this.inputEl.value) this.inputEl.dispatchEvent(new Event("input"));
 			}
 		);
 	}

@@ -49,6 +49,27 @@ describe("resolveNav", () => {
 	});
 });
 
+describe("resolveNav relevance ranking", () => {
+	// A fixture where the query is an exact normalized name for the
+	// higher-numbered surah and only a substring match for the lower-numbered
+	// one — proves score ordering (exact before substring) wins over the
+	// surah-number tie-break, not the other way around.
+	const rankSurahs: Surah[] = [
+		{ number: 1, nameArabic: "يونس", nameEnglish: "Yunas", nameTransliterated: "Yunas", ayahCount: 10, revelationPlace: "makkah" },
+		{ number: 5, nameArabic: "الناس", nameEnglish: "Nas", nameTransliterated: "Nas", ayahCount: 6, revelationPlace: "makkah" },
+	];
+
+	it("an exact name match sorts before a substring match, regardless of surah number", () => {
+		const c = resolveNav("nas", rankSurahs, nav);
+		expect(c[0]).toMatchObject({ surah: 5, kind: "surah" }); // exact "Nas"
+		expect(c[1]).toMatchObject({ surah: 1, kind: "surah" }); // substring "Yunas"
+	});
+
+	it("a query shorter than 2 chars yields no name candidates", () => {
+		expect(resolveNav("a", surahs, nav)).toEqual([]);
+	});
+});
+
 describe("normalizeName", () => {
 	it("strips diacritics, hyphens, case", () => {
 		expect(normalizeName("Al-Baqarah")).toBe(normalizeName("albaqarah"));

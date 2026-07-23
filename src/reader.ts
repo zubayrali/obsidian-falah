@@ -47,9 +47,6 @@ export class QuranReaderView extends ItemView implements VerseView {
 	/** The surah currently rendered (for single-row re-render on toggle). */
 	private renderedSurah?: number;
 	private currentReading?: SurahReading;
-	/** Cached juz/hizb/rub/page boundary data for the in-reader juz prev/next
-	 *  controls. Static bundled data — fetched once and reused. */
-	private nav?: QuranNav;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FalahPlugin) {
 		super(leaf);
@@ -104,7 +101,6 @@ export class QuranReaderView extends ItemView implements VerseView {
 				this.plugin.quranData.listResources(),
 				this.plugin.registry.core.getNav(),
 			]);
-			this.nav = nav;
 			// If the currently-selected translation/tafsir was just removed, reset it
 			// to "none" so the dropdown truly lands on "No …" and the body stops
 			// trying to load a resource that no longer exists.
@@ -176,7 +172,6 @@ export class QuranReaderView extends ItemView implements VerseView {
 			this.bodyEl.createDiv({ cls: "falah-error", text: errMsg(e) });
 			return;
 		}
-		this.nav = nav;
 		this.buildToolbar(surahs, resources, nav);
 		await this.renderBody();
 	}

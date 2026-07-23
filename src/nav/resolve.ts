@@ -61,16 +61,24 @@ export function resolveNav(query: string, surahs: Surah[], nav: QuranNav): NavCa
 	const namePart = nameAyah?.[1] ?? q;
 	const ayahPart = nameAyah?.[2] ? +nameAyah[2] : undefined;
 	const nq = normalizeName(namePart);
-	if (nq) {
+	if (nq.length >= 2) {
+		// Score each surah by its best-matching name field (exact < prefix <
+		// substring), then emit in (score asc, surah number asc) order so an
+		// exact name match always ranks above a looser substring match.
+		const scored: { s: Surah; score: number }[] = [];
 		for (const s of surahs) {
-			const hit = [s.nameTransliterated, s.nameEnglish, s.nameArabic].some((nm) => {
+			let best: number | undefined;
+			for (const nm of [s.nameTransliterated, s.nameEnglish, s.nameArabic]) {
 				const nn = normalizeName(nm);
-				return nn === nq || nn.includes(nq) || nq.includes(nn);
-			});
-			if (hit) {
-				const ayah = ayahPart ?? 1;
-				out.push({ surah: s.number, ayah, kind: ayahPart ? "ayah" : "surah", label: `${s.nameTransliterated} ${s.number}${ayahPart ? `:${ayah}` : ""}`, sublabel: s.nameArabic });
+				const score = nn === nq ? 0 : nn.startsWith(nq) ? 1 : nn.includes(nq) ? 2 : undefined;
+				if (score !== undefined && (best === undefined || score < best)) best = score;
 			}
+			if (best !== undefined) scored.push({ s, score: best });
+		}
+		scored.sort((a, b) => a.score - b.score || a.s.number - b.s.number);
+		for (const { s } of scored) {
+			const ayah = ayahPart ?? 1;
+			out.push({ surah: s.number, ayah, kind: ayahPart ? "ayah" : "surah", label: `${s.nameTransliterated} ${s.number}${ayahPart ? `:${ayah}` : ""}`, sublabel: s.nameArabic });
 		}
 	}
 
