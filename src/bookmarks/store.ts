@@ -178,11 +178,14 @@ export class BookmarkStoreService {
 
 	async clearRecent(): Promise<void> {
 		this.store.recent = [];
+		this.recentDirty = false;
+		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
 		await this.persist();
 	}
 
 	async flush(): Promise<void> {
-		if (this.recentDirty) await this.persist();
+		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
+		if (this.recentDirty) { this.recentDirty = false; await this.persist(); }
 	}
 
 	onChange(cb: () => void): () => void {
@@ -205,8 +208,6 @@ export class BookmarkStoreService {
 		const dir = this.path.includes("/") ? this.path.slice(0, this.path.lastIndexOf("/")) : "";
 		if (dir && !(await this.io.exists(dir))) await this.io.mkdir(dir);
 		await this.io.write(this.path, serializeStore(this.store));
-		this.recentDirty = false;
-		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
 		for (const cb of this.listeners) cb();
 	}
 }
