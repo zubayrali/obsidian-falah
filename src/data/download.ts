@@ -5,6 +5,7 @@ import { DataError, NetworkError, NotFoundError, SchemaError } from "./schema";
 import type { DownloadSourceId, ResourceDescriptor, ResourceType, TafsirVerse, TranslationVerse } from "./schema";
 import {
 	normalizeAlQuranAyahs,
+	normalizeAlQuranFull,
 	normalizeAlQuranEditions,
 	normalizeFawazEditions,
 	normalizeFawazSurah,
@@ -23,6 +24,12 @@ export interface DownloadProgress {
 	surahsTotal: number;
 }
 
+export interface DownloadOptions {
+	/** Overwrite every surah, but only commit the new descriptor/version after
+	 * the whole replacement succeeds. Existing data remains readable on failure. */
+	replaceExisting?: boolean;
+}
+
 export interface DownloadSource {
 	readonly id: DownloadSourceId;
 	/** Resources this source offers, normalized to descriptors. */
@@ -34,6 +41,11 @@ export interface DownloadSource {
 		ayahCount: number,
 		fetchJson: FetchJson
 	): Promise<TranslationVerse[] | TafsirVerse[]>;
+	/** Optional bulk endpoint, used by providers that otherwise rate-limit per-surah requests. */
+	fetchAllSurahs?(
+		desc: ResourceDescriptor,
+		fetchJson: FetchJson,
+	): Promise<Map<number, TranslationVerse[] | TafsirVerse[]>>;
 }
 
 /** Every network call in this module goes through here so a failed/non-OK fetch
@@ -78,6 +90,7 @@ export class Fawazahmed0Source implements DownloadSource {
 const ALQURAN_EDITIONS_URL = "https://api.alquran.cloud/v1/edition";
 const alQuranSurahUrl = (edition: string, surah: number) =>
 	`https://api.alquran.cloud/v1/surah/${surah}/${edition}`;
+const alQuranFullUrl = (edition: string) => `https://api.alquran.cloud/v1/quran/${edition}`;
 
 export class AlQuranCloudSource implements DownloadSource {
 	readonly id: DownloadSourceId = "alquran-cloud";
@@ -100,9 +113,18 @@ export class AlQuranCloudSource implements DownloadSource {
 		const json = await fetchOrThrowNetwork(fetchJson, alQuranSurahUrl(desc.sourceResourceId, surah));
 		return normalizeAlQuranAyahs(json, surah);
 	}
+
+	async fetchAllSurahs(
+		desc: ResourceDescriptor,
+		fetchJson: FetchJson,
+	): Promise<Map<number, TranslationVerse[]>> {
+		if (!desc.sourceResourceId) throw new SchemaError(`${desc.id}: missing sourceResourceId`);
+		const json = await fetchOrThrowNetwork(fetchJson, alQuranFullUrl(desc.sourceResourceId));
+		return normalizeAlQuranFull(json);
+	}
 }
 
-const QUL_BASE = "https://qul.tarteel.ai/api/v1";
+const QURAN_COM_API = "https://api.quran.com/api/v4";
 
 export class QulSource implements DownloadSource {
 	readonly id: DownloadSourceId = "qul";
@@ -112,7 +134,7 @@ export class QulSource implements DownloadSource {
 		if (type !== "translation" && type !== "tafsir") return [];
 		const path = type === "translation" ? "translations" : "tafsirs";
 		return normalizeQulCatalog(
-			await fetchOrThrowNetwork(this.fetchJsonForCatalog, `${QUL_BASE}/resources/${path}`),
+			await fetchOrThrowNetwork(this.fetchJsonForCatalog, `${QURAN_COM_API}/resources/${path}`),
 			type
 		);
 	}
@@ -120,15 +142,15 @@ export class QulSource implements DownloadSource {
 	async fetchSurah(
 		desc: ResourceDescriptor,
 		surah: number,
-		ayahCount: number,
+		_ayahCount: number,
 		fetchJson: FetchJson
 	): Promise<TranslationVerse[] | TafsirVerse[]> {
 		if (!desc.sourceResourceId) throw new SchemaError(`${desc.id}: missing sourceResourceId`);
-		const path = desc.type === "translation" ? "translations" : "tafsirs";
-		const url = `${QUL_BASE}/${path}/${desc.sourceResourceId}/by_range?from=${surah}:1&to=${surah}:${ayahCount}`;
+		const url = desc.type === "translation"
+			? `${QURAN_COM_API}/quran/translations/${desc.sourceResourceId}?chapter_number=${surah}&fields=verse_key`
+			: `${QURAN_COM_API}/tafsirs/${desc.sourceResourceId}/by_chapter/${surah}`;
 		const json = await fetchOrThrowNetwork(fetchJson, url);
-		// The tafsir endpoint returns a different shape ({tafsirs:[{verses,text:HTML}]})
-		// than translations ({translations:[{verse_key,text}]}), so normalize by type.
+		// Tafsir text is HTML while translations are plain-text records.
 		return desc.type === "tafsir" ? normalizeQulTafsirRange(json) : normalizeQulRange(json);
 	}
 }
@@ -147,7 +169,8 @@ export async function downloadResource(
 	source: DownloadSource,
 	deps: { fetchJson: FetchJson; store: DataStore; registry: Registry },
 	onProgress?: (p: DownloadProgress) => void,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	options: DownloadOptions = {},
 ): Promise<void> {
 	if (desc.type !== "translation" && desc.type !== "tafsir") {
 		throw new NotFoundError(`${desc.id}: "${desc.type}" is not a downloadable resource type`);
@@ -155,18 +178,27 @@ export async function downloadResource(
 	const surahs = await deps.registry.core.getSurahs();
 	const category = categoryForType(desc.type);
 	const total = surahs.length;
+	const bulk = source.fetchAllSurahs
+		? await source.fetchAllSurahs(desc, deps.fetchJson)
+		: undefined;
 	let done = 0;
 	for (const surah of surahs) {
 		if (signal?.aborted) return;
-		if (await deps.registry.isSurahInstalled(desc.id, surah.number)) {
+		if (!options.replaceExisting && await deps.registry.isSurahInstalled(desc.id, surah.number)) {
 			done++;
 			onProgress?.({ surahsDone: done, surahsTotal: total });
 			continue;
 		}
-		const verses = await source.fetchSurah(desc, surah.number, surah.ayahCount, deps.fetchJson);
+		const verses = bulk?.get(surah.number)
+			?? await source.fetchSurah(desc, surah.number, surah.ayahCount, deps.fetchJson);
 		await deps.store.writeSurahFile(category, desc.id, surah.number, verses);
-		await deps.registry.recordSurahInstalled(desc, surah.number);
+		if (!options.replaceExisting) {
+			await deps.registry.recordSurahInstalled(desc, surah.number);
+		}
 		done++;
 		onProgress?.({ surahsDone: done, surahsTotal: total });
+	}
+	if (options.replaceExisting && !signal?.aborted) {
+		await deps.registry.recordResourceInstalled(desc, surahs.map((surah) => surah.number));
 	}
 }

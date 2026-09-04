@@ -45,6 +45,10 @@ class ChipWidget extends WidgetType {
 		el.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") this.plugin.openDetail(this.ref);
 		});
+		el.addEventListener("contextmenu", (e) => {
+			e.preventDefault();
+			this.plugin.openReferenceActionMenu(this.ref, e);
+		});
 		return el;
 	}
 }

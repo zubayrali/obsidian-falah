@@ -460,15 +460,19 @@ function makeReadingSource(ioSeed: Record<string, string> = {}) {
 }
 
 // index.json + resource files that make "tr" (translation) and "tf" (tafsir)
-// installed for surah 2, so listResources() resolves their names.
+// installed for surahs 1–2, so listResources() resolves their names and the
+// standalone Bismillah can use the selected pack's translation of 1:1.
 const READING_SEED: Record<string, string> = {
 	"qdata/index.json": JSON.stringify({
 		version: 1,
 		resources: {
-			tr: { type: "translation", name: "My Translation", language: "en", tier: "downloaded", installedAt: 0, surahs: [2] },
+			tr: { type: "translation", name: "My Translation", language: "en", tier: "downloaded", installedAt: 0, surahs: [1, 2] },
 			tf: { type: "tafsir", name: "My Tafsir", language: "en", tier: "downloaded", installedAt: 0, surahs: [2] },
 		},
 	}),
+	"qdata/translations/tr/001.json": JSON.stringify([
+		{ ayahKey: "1:1", text: "In the Name of Allah—the Most Compassionate, Most Merciful" },
+	]),
 	"qdata/translations/tr/002.json": JSON.stringify([
 		{ ayahKey: "2:1", text: "tr 2:1" },
 		{ ayahKey: "2:2", text: "tr 2:2" },
@@ -485,6 +489,7 @@ describe("QuranDataSource.getSurahReading", () => {
 		const reading = await source.getSurahReading(2, { script: "uthmani", translationId: "tr", tafsirId: "tf" });
 		expect(reading.surah.nameEnglish).toBe("The Cow");
 		expect(reading.showBismillah).toBe(true);
+		expect(reading.bismillahTranslation).toBe("In the Name of Allah—the Most Compassionate, Most Merciful");
 		expect(reading.translationName).toBe("My Translation");
 		expect(reading.tafsirName).toBe("My Tafsir");
 		expect(reading.ayahs).toEqual([
@@ -504,6 +509,16 @@ describe("QuranDataSource.getSurahReading", () => {
 		const reading = await source.getSurahReading(2, { script: "uthmani", translationId: "nope", tafsirId: "nope" });
 		expect(reading.ayahs.map((a) => a.translation)).toEqual([undefined, undefined]);
 		expect(reading.ayahs.map((a) => a.tafsir)).toEqual([undefined, undefined]);
+		expect(reading.bismillahTranslation).toBeUndefined();
+	});
+
+	it("keeps the selected surah translation when its pack has no 1:1 caption", async () => {
+		const seedWithoutBismillah = { ...READING_SEED };
+		delete seedWithoutBismillah["qdata/translations/tr/001.json"];
+		const { source } = makeReadingSource(seedWithoutBismillah);
+		const reading = await source.getSurahReading(2, { script: "uthmani", translationId: "tr" });
+		expect(reading.ayahs.map((a) => a.translation)).toEqual(["tr 2:1", "tr 2:2"]);
+		expect(reading.bismillahTranslation).toBeUndefined();
 	});
 
 	it("applies a group tafsir (ayahKeys) to every covered ayah", async () => {

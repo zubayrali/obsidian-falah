@@ -1,7 +1,7 @@
 // Native detail surface — the Obsidian equivalent of Qirtaas' VerseDetailPanel /
 // HadithDetailPanel: Arabic, translation, tafsir, navigation, copy actions, source link.
 
-import { Modal } from "obsidian";
+import { Modal, setIcon } from "obsidian";
 import type FalahPlugin from "./main";
 import { IslamicReference, QuranRef, toLabel, toUri } from "./ref";
 import type { HadithContent, VerseContent } from "./data/schema";
@@ -43,6 +43,25 @@ export class ReferenceDetailModal extends Modal {
 		body.empty();
 		if (this.ref.kind === "quran") this.renderQuran(body, detail as VerseContent);
 		else this.renderHadith(body, detail as HadithContent);
+		await this.renderReferenceActions(body);
+	}
+
+	private async renderReferenceActions(body: HTMLElement): Promise<void> {
+		const items = await this.plugin.referenceActionItems(this.ref);
+		if (!items.length) return;
+		const row = body.createDiv({ cls: "falah-actions falah-companion-actions" });
+		for (const item of items) {
+			const button = row.createEl("button", { text: item.title });
+			if (item.icon) {
+				button.empty();
+				setIcon(button, item.icon);
+				button.createSpan({ text: item.title });
+			}
+			button.onclick = () => {
+				this.close();
+				void item.onClick?.();
+			};
+		}
 	}
 
 	private renderQuran(body: HTMLElement, d: VerseContent): void {
@@ -135,13 +154,15 @@ export class ReferenceDetailModal extends Modal {
 
 		const initialFav = this.plugin.bookmarks.isFavourite(anchor);
 		const favBtn = container.createEl("button", {
-			text: initialFav ? "★" : "☆",
+			cls: "falah-icon-button",
 			attr: { "aria-label": initialFav ? t().bookmarkUnfavourite : t().bookmarkFavourite },
 		});
+		setIcon(favBtn, "star");
+		favBtn.toggleClass("is-favourite", initialFav);
 		favBtn.onclick = async () => {
 			const wasFav = this.plugin.bookmarks.isFavourite(anchor);
 			await this.plugin.bookmarks.setFavourite(anchor, !wasFav);
-			favBtn.setText(!wasFav ? "★" : "☆");
+			favBtn.toggleClass("is-favourite", !wasFav);
 			favBtn.setAttribute("aria-label", !wasFav ? t().bookmarkUnfavourite : t().bookmarkFavourite);
 		};
 	}

@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { BookmarkStoreService } from "./store";
 import type { FileIO } from "../data/store";
 
+const timers = {
+	schedule: () => 1,
+	cancel: () => undefined,
+};
+
 function memIO(seed: Record<string, string> = {}): FileIO & { files: Record<string, string> } {
 	const files = { ...seed };
 	return {
@@ -21,7 +26,7 @@ describe("BookmarkStoreService", () => {
 	let svc: BookmarkStoreService;
 	beforeEach(async () => {
 		io = memIO();
-		svc = new BookmarkStoreService(io, "Falah/bookmarks.json", () => 42);
+		svc = new BookmarkStoreService(io, "Falah/bookmarks.json", () => 42, 3000, timers);
 		await svc.load();
 	});
 
@@ -61,7 +66,7 @@ describe("BookmarkStoreService", () => {
 
 	it("reload reads persisted state back", async () => {
 		await svc.add({ anchor: "falah://quran/1/1", group: "Juz Amma" });
-		const svc2 = new BookmarkStoreService(io, "Falah/bookmarks.json", () => 42);
+		const svc2 = new BookmarkStoreService(io, "Falah/bookmarks.json", () => 42, 3000, timers);
 		await svc2.load();
 		expect(svc2.list().find((g) => g.name === "Juz Amma")?.items[0].anchor).toBe("falah://quran/1/1");
 	});
@@ -186,7 +191,7 @@ describe("BookmarkStoreService", () => {
 		let r: BookmarkStoreService;
 		beforeEach(async () => {
 			rio = memIO();
-			r = new BookmarkStoreService(rio, "Falah/bookmarks.json", () => 100, 5); // 5ms debounce
+			r = new BookmarkStoreService(rio, "Falah/bookmarks.json", () => 100, 5, timers); // controlled timer
 			await r.load();
 			r.setRecentCap(3);
 		});
@@ -230,7 +235,7 @@ describe("BookmarkStoreService", () => {
 
 		it("an intentional mutation persists pending in-memory recent (rides along on the write)", async () => {
 			const longIo = memIO();
-			const long = new BookmarkStoreService(longIo, "Falah/bookmarks.json", () => 100, 60_000); // long debounce
+			const long = new BookmarkStoreService(longIo, "Falah/bookmarks.json", () => 100, 60_000, timers); // controlled timer
 			await long.load();
 			long.setRecentCap(5);
 

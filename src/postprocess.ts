@@ -21,6 +21,10 @@ export function falahPostProcessor(plugin: FalahPlugin): MarkdownPostProcessor {
 				e.preventDefault();
 				plugin.openDetail(ref);
 			});
+			chip.addEventListener("contextmenu", (e) => {
+				e.preventDefault();
+				plugin.openReferenceActionMenu(ref, e);
+			});
 			chip.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") plugin.openDetail(ref);
 			});

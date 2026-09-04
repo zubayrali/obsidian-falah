@@ -105,7 +105,7 @@ describe("label maps", () => {
 	it("renders friendly source names", () => {
 		expect(SOURCE_LABELS["fawazahmed0"]).toBe("fawazahmed0 (Quran CDN)");
 		expect(SOURCE_LABELS["alquran-cloud"]).toBe("AlQuran.cloud");
-		expect(SOURCE_LABELS["qul"]).toBe("QUL");
+		expect(SOURCE_LABELS["qul"]).toBe("Quran.com resources");
 	});
 	it("renders 'default' for the bundled tier", () => {
 		expect(TIER_LABELS["bundled"]).toBe("default");

@@ -24,7 +24,7 @@ export function annotateCatalogLabels(
 export const SOURCE_LABELS: Record<DownloadSourceId, string> = {
 	fawazahmed0: "fawazahmed0 (Quran CDN)",
 	"alquran-cloud": "AlQuran.cloud",
-	qul: "QUL",
+	qul: "Quran.com resources",
 };
 
 /** Friendly tier words. The internal "bundled" tier reads as "default" in the UI. */

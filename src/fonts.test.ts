@@ -7,6 +7,8 @@ import {
 	dedupeFamilies,
 	familyFromFontFile,
 	fontStackFor,
+	groupSystemFonts,
+	isLikelyArabicFont,
 } from "./fonts";
 
 describe("fontStackFor", () => {
@@ -40,6 +42,21 @@ describe("bundledFontsForScript", () => {
 describe("dedupeFamilies", () => {
 	it("dedupes, drops blanks, and sorts", () => {
 		expect(dedupeFamilies(["Beta", "Alpha", "Alpha", "   ", ""])).toEqual(["Alpha", "Beta"]);
+	});
+});
+
+describe("system font grouping", () => {
+	it("prioritizes likely Arabic families without dropping the rest", () => {
+		expect(groupSystemFonts(["Verdana", "Amiri", "Al Tarikh", "Arial", "Amiri"])).toEqual({
+			arabic: ["Al Tarikh", "Amiri"],
+			other: ["Arial", "Verdana"],
+		});
+	});
+
+	it("recognizes common Quran and Arabic font naming conventions", () => {
+		expect(isLikelyArabicFont("Noto Naskh Arabic")).toBe(true);
+		expect(isLikelyArabicFont("KFGQPC Uthmanic Hafs")).toBe(true);
+		expect(isLikelyArabicFont("Helvetica Neue")).toBe(false);
 	});
 });
 

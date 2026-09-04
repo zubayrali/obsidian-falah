@@ -31,6 +31,7 @@ const validPack = JSON.stringify({
 	type: "tafsir",
 	name: "My Tafsir",
 	language: "en",
+	chapterNames: { "1": "The Opening", "2": "The Cow" },
 	verses: [
 		{ ayahKey: "1:1", text: "First." },
 		{ ayahKey: "1:2", text: "Second." },
@@ -55,9 +56,10 @@ describe("scanImportsFolder", () => {
 		expect(installed[0]).toMatchObject({
 			id: "import-my-tafsir",
 			type: "tafsir",
-			name: "My Tafsir",
-			tier: "user-import",
-		});
+				name: "My Tafsir",
+				tier: "user-import",
+				meta: { chapterNames: { "1": "The Opening", "2": "The Cow" } },
+			});
 		// verses written to disk under the tafsirs category, one file per surah
 		expect(await d.io.exists("qdata/tafsirs/import-my-tafsir/001.json")).toBe(true);
 		expect(await d.io.exists("qdata/tafsirs/import-my-tafsir/002.json")).toBe(true);
@@ -82,6 +84,15 @@ describe("scanImportsFolder", () => {
 		expect(result.ok).toEqual([]);
 		expect(result.failed).toHaveLength(1);
 		expect(result.failed[0]).toContain("wrong.json");
+	});
+
+	it("rejects malformed chapter-name metadata", async () => {
+		const malformed = JSON.parse(validPack) as Record<string, unknown>;
+		malformed.chapterNames = { "0": "Invalid", "2": "" };
+		const d = deps({ "imports/malformed.json": JSON.stringify(malformed) });
+		const result = await scanImportsFolder(d);
+		expect(result.ok).toEqual([]);
+		expect(result.failed[0]).toContain("invalid chapter name");
 	});
 
 	it("ignores non-JSON files in the imports/ folder", async () => {

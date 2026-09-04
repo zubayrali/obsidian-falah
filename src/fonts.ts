@@ -14,6 +14,11 @@ export interface QuranFont {
 
 export const FALLBACK_FAMILY = "Noto Naskh Arabic";
 
+/** Decorative Surah-heading font from QUL. This is intentionally separate
+ * from BUNDLED_FONTS: it renders surah001 through surah114 ligatures and is not
+ * a Quran body-text option. */
+export const SURAH_NAME_FONT_FAMILY = "surah-name-v4-icon";
+
 export const BUNDLED_FONTS: QuranFont[] = [
 	{
 		name: "Amiri Quran",
@@ -69,6 +74,24 @@ export function dedupeFamilies(families: string[]): string[] {
 	return [...new Set(families.filter((f) => typeof f === "string" && f.trim()))].sort((a, b) =>
 		a.localeCompare(b)
 	);
+}
+
+/** Font metadata exposed by Chromium does not include supported Unicode ranges.
+ * Keep every detected family available, but surface well-known Arabic/Quran font
+ * families first instead of pretending the remaining fonts are unsupported. */
+const ARABIC_FONT_NAME_HINT = /(?:arab|qur|koran|uthman|naskh|nask|nastaliq|kufi|kufic|diwani|amiri|scheherazade|lateef|harmattan|markazi|mada|mirza|reem|cairo|tajawal|almarai|changa|katibeh|lalezar|lemonada|khat|harf|geeza|baghdad|damascus|al[ -]?(?:bayan|nile|tarikh))/i;
+
+export function isLikelyArabicFont(family: string): boolean {
+	return ARABIC_FONT_NAME_HINT.test(family);
+}
+
+export function groupSystemFonts(families: string[]): { arabic: string[]; other: string[] } {
+	const arabic: string[] = [];
+	const other: string[] = [];
+	for (const family of dedupeFamilies(families)) {
+		(isLikelyArabicFont(family) ? arabic : other).push(family);
+	}
+	return { arabic, other };
 }
 
 /** Vault font filename → family name: basename minus a font extension. */

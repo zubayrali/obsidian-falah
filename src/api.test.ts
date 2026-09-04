@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FALAH_API_VERSION, SlashItemRegistry, VerseActionRegistry } from "./api";
-import type { SlashItem } from "./api";
+import { FALAH_API_VERSION, ReferenceActionRegistry, SlashItemRegistry, VerseActionRegistry } from "./api";
+import type { ReferenceAction, SlashItem } from "./api";
 import type { VerseAction } from "./verse-actions";
 import FalahPlugin from "./main";
 
@@ -62,8 +62,32 @@ describe("SlashItemRegistry", () => {
 	});
 });
 
-describe("api v6 bookmarks surface", () => {
-	it("version is 6", () => {
-		expect(FALAH_API_VERSION).toBe(6);
+describe("ReferenceActionRegistry", () => {
+	const action = (id: string): ReferenceAction => ({ id, items: () => [] });
+
+	it("adds actions in order and unregisters idempotently", () => {
+		const reg = new ReferenceActionRegistry();
+		const offA = reg.register(action("reflect"));
+		const offB = reg.register(action("share"));
+		expect(reg.list().map((x) => x.id)).toEqual(["reflect", "share"]);
+
+		offA();
+		offA();
+		expect(reg.list().map((x) => x.id)).toEqual(["share"]);
+		offB();
+		expect(reg.list()).toEqual([]);
+	});
+
+	it("returns a copy of the registered actions", () => {
+		const reg = new ReferenceActionRegistry();
+		reg.register(action("reflect"));
+		reg.list().push(action("injected"));
+		expect(reg.list().map((x) => x.id)).toEqual(["reflect"]);
+	});
+});
+
+describe("api v7 reference-action surface", () => {
+	it("version is 7", () => {
+		expect(FALAH_API_VERSION).toBe(7);
 	});
 });

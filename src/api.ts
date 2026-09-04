@@ -7,7 +7,7 @@ import type { IslamicReference, QuranRef, RenderedText, FoundReference } from ".
 import { toUri, toCallout, parseRefUri, findReferences, parseAyahKey } from "./ref";
 import type { BookmarkGroup, Bookmark, Lens } from "./bookmarks/schema";
 
-export const FALAH_API_VERSION = 6;
+export const FALAH_API_VERSION = 7;
 
 /** True when `id` is in the user's enabled-plugin set. Unlike reading
  *  `app.plugins.plugins[id]`, this is load-order independent: `enabledPlugins`
@@ -42,6 +42,15 @@ export interface SlashItem {
 	onSelect(editor: Editor, file: TFile | null): void | Promise<void>;
 }
 
+/** A companion action available from rendered reference chips and the detail view. */
+export interface ReferenceAction {
+	id: string;
+	items(ref: IslamicReference): VerseActionItem[] | Promise<VerseActionItem[]>;
+}
+
+/** Reference actions intentionally share the same small menu-item shape as reader actions. */
+export type VerseActionItem = Awaited<ReturnType<VerseAction["items"]>>[number];
+
 export interface FalahRefApi {
 	toUri(ref: IslamicReference): string;
 	toCallout(ref: IslamicReference, text?: RenderedText): string;
@@ -72,6 +81,8 @@ export interface FalahBookmarksApi {
 export interface FalahApi {
 	readonly version: number;
 	registerVerseAction(action: VerseAction): () => void;
+	/** Contribute actions for rendered falah:// references. Added in v7. */
+	registerReferenceAction(action: ReferenceAction): () => void;
 	registerAyahRowDecorator(decorator: AyahRowDecorator): () => void;
 	/** Contribute an entry to Falah's slash menu. Added in v4. Falah owns the "/"
 	 *  trigger — a companion registering its own EditorSuggest on "/" would race
@@ -106,6 +117,21 @@ export class VerseActionRegistry {
 	}
 	list(): VerseAction[] {
 		return [...this.defaults, ...this.extra];
+	}
+}
+
+/** Ordered registry for actions contributed to reference chips and detail views. */
+export class ReferenceActionRegistry {
+	private items: ReferenceAction[] = [];
+	register(action: ReferenceAction): () => void {
+		this.items.push(action);
+		return () => {
+			const i = this.items.indexOf(action);
+			if (i >= 0) this.items.splice(i, 1);
+		};
+	}
+	list(): ReferenceAction[] {
+		return [...this.items];
 	}
 }
 

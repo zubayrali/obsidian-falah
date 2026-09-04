@@ -66,6 +66,11 @@
 	align-items: center;
 	margin-top: 0.8em;
 }
+.falah-detail .falah-companion-actions button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
 
 /* Suggest entries */
 .falah-suggest-snippet {
@@ -73,97 +78,238 @@
 	font-size: 0.85em;
 }
 
-/* Settings: resource download progress (added in Task 10) */
-.falah-download-progress {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	margin-top: 4px;
+/* Settings: resource browser */
+.falah-library-overview {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	min-height: 24px;
+	margin: 10px 2px 4px;
 }
 
-/* Settings: resource browser */
-.falah-filter-bar {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
+.falah-library-count {
+	display: inline-flex;
 	align-items: center;
-	margin: 8px 0 12px;
+	min-height: 24px;
+	padding: 2px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
 }
-.falah-filter-bar .falah-search {
-	flex: 1 1 160px;
-	min-width: 120px;
+
+.falah-filter-bar {
+	display: grid;
+	grid-template-columns: minmax(150px, 1.4fr) repeat(3, minmax(120px, 1fr)) auto;
+	gap: 8px;
+	align-items: end;
+	margin: 8px 0 10px;
 }
+
+.falah-library-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.falah-library-field-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+}
+
+.falah-library-field input,
+.falah-library-field select {
+	width: 100%;
+	min-width: 0;
+}
+
 .falah-resource-list {
 	display: flex;
 	flex-direction: column;
-	max-height: 340px;
+	max-height: min(420px, 50vh);
 	overflow-y: auto;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
+	border-radius: var(--radius-s);
 	padding: 0 10px;
 }
-.falah-resource-list .setting-item {
-	border-top: none;
-	border-bottom: 1px solid var(--background-modifier-border);
+
+.modal.mod-settings .falah-resource-list .setting-item,
+.modal.mod-settings .falah-hadith-list .setting-item,
+.modal.mod-settings .falah-hadith-installed .setting-item {
+	margin: 0 !important;
+	border: 0 !important;
+	border-bottom: 1px solid var(--background-modifier-border) !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
 }
-.falah-resource-list .setting-item:last-child {
-	border-bottom: none;
+
+.modal.mod-settings .falah-resource-list .setting-item:last-child,
+.modal.mod-settings .falah-hadith-list .setting-item:last-child,
+.modal.mod-settings .falah-hadith-installed .setting-item:last-child {
+	border-bottom: 0 !important;
 }
+
 .falah-muted {
 	color: var(--text-muted);
 	padding: 8px 2px;
 }
-.falah-download-progress {
+
+.falah-library-state {
 	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 8px 0;
+	padding: 8px 10px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.falah-library-state.is-warning {
+	color: var(--text-warning);
+}
+
+.falah-library-state.is-error {
+	color: var(--text-error);
+}
+
+.falah-library-spinner {
+	width: 14px;
+	height: 14px;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: falah-library-spin 800ms linear infinite;
+}
+
+@keyframes falah-library-spin {
+	to { transform: rotate(360deg); }
+}
+
+.falah-download-progress {
+	display: grid;
+	grid-template-columns: minmax(160px, 1fr) minmax(110px, 220px) auto;
 	gap: 8px;
 	align-items: center;
 	min-height: 1.5em;
-	margin: 8px 0;
+	margin: 10px 2px;
 	color: var(--text-muted);
+	font-size: var(--font-ui-small);
 }
-/* Settings: hadith download UI (Task 13) */
+
+.falah-download-meter {
+	width: 100%;
+	accent-color: var(--interactive-accent);
+}
+
+.falah-library-show-more {
+	align-self: center;
+	margin: 10px;
+}
+
+.falah-recitation-library-intro {
+	max-width: 68ch;
+	margin: 6px 4px 12px;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.falah-recitation-download-progress {
+	display: grid;
+	grid-template-columns: minmax(180px, 1fr) minmax(120px, 220px) auto;
+	align-items: center;
+	gap: 10px;
+	margin: 8px 4px 14px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.falah-recitation-download-progress progress {
+	width: 100%;
+	accent-color: var(--interactive-accent);
+}
+
+.falah-recitation-feedback {
+	margin: 6px 4px 14px;
+	padding: 8px 10px;
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+@media (max-width: 720px) {
+	.falah-recitation-download-progress {
+		grid-template-columns: 1fr auto;
+	}
+	.falah-recitation-download-progress progress {
+		grid-column: 1 / -1;
+		grid-row: 2;
+	}
+}
+/* Settings: hadith download UI */
 .falah-hadith-library {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	margin: 8px 0 12px;
+	gap: 4px;
+	margin: 2px 0 10px;
 }
-.falah-hadith-keyrow {
-	display: flex;
-	gap: 8px;
-	align-items: center;
+
+.falah-hadith-library .falah-filter-bar {
+	grid-template-columns: minmax(210px, 1.4fr) minmax(180px, 1fr) auto;
 }
-.falah-hadith-keyrow input {
-	flex: 1 1 240px;
-}
+
 .falah-hadith-list {
 	display: flex;
 	flex-direction: column;
-	max-height: 340px;
+	max-height: min(380px, 46vh);
 	overflow-y: auto;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
+	border-radius: var(--radius-s);
 	padding: 0 10px;
 }
-.falah-hadith-row {
+
+.falah-library-status {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 8px 0;
-	border-bottom: 1px solid var(--background-modifier-border);
+	min-height: 28px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
 }
-.falah-hadith-row:last-child {
-	border-bottom: none;
-}
-.falah-hadith-row span {
-	flex: 1 1 auto;
-}
-.falah-hadith-status {
-	min-height: 1.2em;
-}
+
 .falah-hadith-installed {
-	margin-top: 4px;
+	margin-top: 8px;
 	border-top: 1px solid var(--background-modifier-border);
-	padding-top: 8px;
+	padding-top: 4px;
+}
+
+@media (max-width: 900px) {
+	.falah-filter-bar,
+	.falah-hadith-library .falah-filter-bar {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.falah-filter-bar .falah-refresh {
+		justify-self: start;
+	}
+}
+
+@media (max-width: 600px) {
+	.falah-filter-bar,
+	.falah-hadith-library .falah-filter-bar,
+	.falah-download-progress {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.falah-library-spinner { animation: none; }
 }
 .falah-advanced {
 	margin-top: 16px;
@@ -184,6 +330,12 @@
 	display: flex;
 	flex-direction: column;
 	height: 100%;
+}
+
+/* ItemView inherits Obsidian's document inset; the reader supplies its own
+ * compact toolbar and content gutters, so a second outer inset wastes the fold. */
+.view-content.falah-reader {
+	padding: 0;
 }
 .falah-reader-toolbar {
 	display: flex;
@@ -278,8 +430,33 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 }
 .falah-reader-bismillah {
 	text-align: center;
-	font-size: var(--falah-reader-bismillah-size, 1.4em);
-	margin: 12px 0 20px;
+	margin: 10px auto clamp(22px, 3.5vh, 32px);
+	padding-inline: 16px;
+	color: var(--text-normal);
+}
+.falah-reader-bismillah-glyph {
+	font-family: "Amiri Quran", "KFGQPC Uthmanic Hafs", serif;
+	font-size: var(--falah-reader-bismillah-size, clamp(2.7rem, 6vw, 3.75rem));
+	font-weight: 400;
+	line-height: 1.1;
+	text-rendering: optimizeLegibility;
+}
+.falah-reader-bismillah-translation {
+	max-width: 52ch;
+	margin: 5px auto 0;
+	color: var(--text-muted);
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-medium);
+	line-height: 1.55;
+}
+@media (max-width: 480px) {
+	.falah-reader-bismillah {
+		margin-block: 8px 24px;
+		padding-inline: 8px;
+	}
+	.falah-reader-bismillah-glyph {
+		font-size: var(--falah-reader-bismillah-size, clamp(2.5rem, 13vw, 3.4rem));
+	}
 }
 .falah-reader-ayah {
 	padding: var(--falah-reader-ayah-padding-block, 12px) var(--falah-reader-ayah-padding-inline, 8px);
@@ -290,6 +467,7 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 	background: var(--text-selection);
 }
 .falah-reader-arabic {
+	font-size: var(--falah-reader-arabic-font-size, 28px);
 	line-height: 2;
 	text-align: right;
 }
@@ -440,10 +618,22 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 .falah-bookmark-main {
 	display: flex;
 	flex-direction: column;
+	align-items: stretch;
 	flex: 1;
 	min-width: 0;
+	padding: 0;
+	color: inherit;
+	text-align: start;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-s);
+	box-shadow: none;
 	cursor: pointer;
 	gap: 2px;
+}
+.falah-bookmark-main:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
 }
 .falah-bookmark-label {
 	color: var(--text-normal);
@@ -538,12 +728,29 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 	gap: var(--size-2-2);
 	padding: var(--size-2-2) var(--size-2-3);
 	border-radius: var(--radius-s);
-	cursor: pointer;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin: var(--size-4-4) 0 var(--size-2-2);
+}
+.falah-bookmark-collection-toggle {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	color: inherit;
+	text-align: start;
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+	cursor: pointer;
+}
+.falah-bookmark-collection-toggle:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
 }
 .falah-bookmark-collection-head:hover {
 	background: var(--background-modifier-hover);
@@ -657,6 +864,22 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 	outline-offset: 1px;
 }
 
+@media (hover: none), (pointer: coarse) {
+	.falah-reader-verse-menu,
+	.falah-bookmark-remove,
+	.falah-bookmark-collection-menu,
+	.falah-bookmark-recent-save {
+		opacity: 1;
+	}
+
+	.falah-icon-button,
+	.falah-bookmark-remove,
+	.falah-bookmark-collection-menu {
+		min-width: 44px;
+		min-height: 44px;
+	}
+}
+
 /* Settings tab — left-nav tabbed shell */
 .falah-settings-shell {
 	display: flex;
@@ -688,4 +911,1795 @@ body.falah-hide-size-buttons .falah-reader-toolbar-cluster-size {
 .falah-settings-content {
 	flex: 1;
 	min-width: 0;
+}
+
+.falah-quran-browse-tabs { display: flex; gap: var(--size-4-2); margin-bottom: var(--size-4-3); }
+.falah-quran-browse-tab.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.falah-quran-browse-list { display: grid; gap: var(--size-4-1); max-height: 65vh; overflow-y: auto; }
+.falah-quran-browse-row { display: block; width: 100%; padding: var(--size-4-2); text-align: start; }
+.falah-reader-position { color: var(--text-muted); font-size: var(--font-ui-small); }
+.falah-reader-ayah-furthest { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--interactive-accent) 55%, transparent); }
+.falah-suggest-snippet mark { background: var(--text-highlight-bg); color: inherit; }
+.falah-search-scope { display: flex; gap: var(--size-4-2); padding: var(--size-4-2); }
+.falah-reader-compare { min-height: 2.4em; max-width: 15rem; }
+.falah-reader-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: var(--size-4-3); margin-top: var(--size-4-3); }
+.falah-reader-comparison-cell { padding: var(--size-4-3); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); }
+.falah-reader-comparison-title { color: var(--text-muted); font-size: var(--font-ui-smaller); font-weight: 600; margin-bottom: var(--size-4-2); }
+.falah-reader-words { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: var(--size-4-3); margin: var(--size-4-3) 0; }
+.falah-reader-word {
+	min-width: 4rem;
+	padding: var(--size-4-2);
+	text-align: center;
+	color: var(--text-normal);
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-s);
+	box-shadow: none;
+	cursor: pointer;
+}
+.falah-reader-word:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.falah-reader-word:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.falah-reader-word-arabic { font-size: 1.25em; }
+.falah-reader-word-transliteration, .falah-reader-word-gloss { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+
+/* Word analysis ---------------------------------------------------------- */
+.falah-word-inspector-modal {
+	width: min(42rem, calc(100vw - 2rem));
+	max-height: min(48rem, calc(100vh - 3rem));
+	padding: 0;
+	overflow: hidden;
+}
+.falah-word-inspector { padding: 0; }
+.falah-word-inspector-head {
+	position: relative;
+	padding: var(--size-4-5) var(--size-4-6) var(--size-4-4);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: color-mix(in srgb, var(--interactive-accent) 7%, var(--background-primary));
+}
+.falah-word-inspector-kicker,
+.falah-word-inspector-label {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+.falah-word-inspector-arabic {
+	margin-top: var(--size-4-2);
+	padding-inline-end: 2.5rem;
+	font-family: var(--font-arabic, "Noto Naskh Arabic", serif);
+	font-size: 2.8rem;
+	line-height: 1.35;
+	text-align: start;
+}
+.falah-word-inspector-transliteration { color: var(--text-muted); font-size: var(--font-ui-small); }
+.falah-word-inspector-body { max-height: min(35rem, calc(100vh - 13rem)); padding: var(--size-4-5) var(--size-4-6); overflow-y: auto; }
+.falah-word-inspector-section + .falah-word-inspector-section {
+	margin-top: var(--size-4-6);
+	padding-top: var(--size-4-5);
+	border-top: 1px solid var(--background-modifier-border);
+}
+.falah-word-inspector-section h3 { margin: 0 0 var(--size-4-3); font-size: var(--font-ui-large); }
+.falah-word-inspector-meaning {
+	display: grid;
+	grid-template-columns: minmax(7rem, 0.35fr) 1fr;
+	gap: var(--size-4-3);
+	align-items: baseline;
+	padding: var(--size-4-3) 0;
+}
+.falah-word-inspector-gloss { font-size: 1.15em; font-weight: 600; }
+.falah-word-inspector-dictionary { padding-top: var(--size-4-3); }
+.falah-word-inspector-dictionary ul { margin: var(--size-4-2) 0 0; padding-inline-start: 1.25rem; }
+.falah-word-inspector-empty { margin-top: var(--size-4-2); color: var(--text-muted); }
+.falah-word-inspector-source { margin-top: var(--size-4-2); color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.falah-word-segments {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+	direction: rtl;
+}
+.falah-word-segment {
+	--segment-color: var(--color-cyan);
+	min-width: 7rem;
+	padding: var(--size-4-3);
+	border: 1px solid color-mix(in srgb, var(--segment-color) 48%, var(--background-modifier-border));
+	border-radius: var(--radius-s);
+	background: color-mix(in srgb, var(--segment-color) 8%, var(--background-primary));
+	text-align: start;
+}
+.falah-word-segment.is-prefix { --segment-color: var(--color-purple); }
+.falah-word-segment.is-suffix { --segment-color: var(--color-pink); }
+.falah-word-segment[data-pos="v"] { --segment-color: var(--color-orange); }
+.falah-word-segment[data-pos="n"],
+.falah-word-segment[data-pos="pn"] { --segment-color: var(--color-blue); }
+.falah-word-segment-form { font-family: var(--font-arabic, "Noto Naskh Arabic", serif); font-size: 1.7em; line-height: 1.4; }
+.falah-word-segment-pos { color: var(--segment-color); font-size: var(--font-ui-small); font-weight: 700; }
+.falah-word-segment-code { margin-top: 0.2rem; color: var(--text-faint); font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.falah-word-grammar-facts {
+	display: grid;
+	grid-template-columns: minmax(8rem, 0.4fr) 1fr;
+	margin: var(--size-4-4) 0 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+.falah-word-grammar-facts dt,
+.falah-word-grammar-facts dd { margin: 0; padding: var(--size-4-2) 0; border-bottom: 1px solid var(--background-modifier-border); }
+.falah-word-grammar-facts dt { color: var(--text-muted); font-size: var(--font-ui-small); }
+.falah-word-grammar-facts dd { text-align: end; font-weight: 600; }
+.falah-word-grammar-arabic { font-family: var(--font-arabic, "Noto Naskh Arabic", serif); font-size: 1.3em; }
+
+@media (max-width: 520px) {
+	.falah-word-inspector-head,
+	.falah-word-inspector-body { padding-inline: var(--size-4-4); }
+	.falah-word-inspector-meaning,
+	.falah-word-grammar-facts { grid-template-columns: 1fr; }
+	.falah-word-grammar-facts dd { padding-top: 0; text-align: start; }
+	.falah-word-grammar-facts dt { border-bottom: 0; }
+}
+.falah-reader-ayah-playing { background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); }
+.falah-reader-audio-status { max-width: 14rem; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+
+/* Reader console --------------------------------------------------------- */
+.falah-reader-toolbar {
+	display: block;
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	padding: 8px 10px 10px;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+}
+
+.falah-reader-toolbar-controls {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+	min-width: 0;
+}
+
+.falah-reader-toolbar-primary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.falah-reader-toolbar-navigation {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.falah-reader-toolbar-group,
+.falah-reader-toolbar-group:last-child {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	position: relative;
+	padding: 0;
+	margin: 0;
+	border: 0;
+}
+
+.falah-reader-toolbar select,
+.falah-reader-toolbar button {
+	border-color: var(--background-modifier-border);
+	background-color: var(--background-secondary);
+	transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.falah-reader-toolbar select:hover,
+.falah-reader-toolbar button:hover {
+	border-color: color-mix(in srgb, var(--interactive-accent) 48%, var(--background-modifier-border));
+}
+
+.falah-reader-toolbar-surah {
+	flex: 1 1 260px;
+}
+
+.falah-reader-toolbar-surah select {
+	flex: 1 1 220px;
+	min-width: 150px;
+	max-width: none;
+	font-weight: 650;
+}
+
+.falah-reader-toolbar-nav {
+	flex: 0 0 auto;
+	padding-inline-start: 8px;
+	border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+.falah-reader-toolbar-settings {
+	margin-inline-start: auto;
+	color: var(--text-muted);
+}
+
+.falah-reader-toolbar-settings.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.falah-reader-player {
+	min-width: 0;
+	padding: 7px 10px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.falah-reader-audio {
+	display: grid;
+	grid-template-columns: auto minmax(120px, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.falah-reader-audio-transport,
+.falah-reader-audio-utilities {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.falah-reader-audio-primary {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent) !important;
+	border-color: var(--interactive-accent) !important;
+	border-radius: 50%;
+}
+
+.falah-reader-audio-now-playing {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	align-items: baseline;
+	column-gap: 9px;
+	min-width: 0;
+}
+
+.falah-reader-audio-eyebrow {
+	grid-column: 1 / -1;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.falah-reader-audio-reciter {
+	overflow: hidden;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: 650;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.falah-reader-audio-position {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.falah-reader-audio-status {
+	max-width: 12rem;
+	overflow: hidden;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.falah-reader-options-panel {
+	display: grid;
+	grid-template-columns: minmax(180px, 0.9fr) minmax(280px, 1.35fr) minmax(150px, 0.65fr);
+	gap: 0;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.falah-reader-options-section {
+	display: flex;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	gap: 7px;
+	min-width: 0;
+	padding: 4px 12px 2px;
+	border-inline-end: 1px solid var(--background-modifier-border);
+}
+
+.falah-reader-options-section:first-child { padding-inline-start: 2px; }
+.falah-reader-options-section:last-child { border-inline-end: 0; }
+
+.falah-reader-options-heading {
+	width: 100%;
+	margin-bottom: 1px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.falah-reader-toolbar-cluster-script-font,
+.falah-reader-toolbar-editions {
+	width: 100%;
+	flex-wrap: wrap;
+}
+
+.falah-reader-toolbar-script { flex: 0 1 118px; }
+.falah-reader-toolbar-font { flex: 1 1 180px; }
+.falah-reader-toolbar-script select,
+.falah-reader-toolbar-font select,
+.falah-reader-toolbar-tafsir select { width: 100%; max-width: 100%; }
+
+.falah-reader-toolbar-editions > select,
+.falah-reader-toolbar-tafsir { flex: 1 1 160px; min-width: 0; }
+
+.falah-reader-compare {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: var(--input-height);
+	white-space: nowrap;
+}
+
+.falah-reader-compare.is-active,
+.falah-reader-repeat.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+}
+
+.falah-reader-toolbar-cluster-size,
+.falah-reader-toolbar-window-actions { flex: 0 0 auto; }
+
+.falah-reader-toolbar-window-actions { margin-inline-start: auto; }
+
+.falah-reader-toolbar :focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.falah-reader-head {
+	position: relative;
+	margin: 0 auto;
+	padding: clamp(18px, 3vw, 28px) 16px 8px;
+	text-align: center;
+}
+
+.falah-reader-head::after {
+	content: none;
+}
+
+.falah-reader-surah-number {
+	position: absolute;
+	top: 22px;
+	left: 50%;
+	transform: translateX(-50%);
+	color: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-muted));
+	font-size: var(--font-ui-smaller);
+	font-weight: 750;
+	letter-spacing: 0.16em;
+}
+
+.falah-reader-surah-arabic {
+	margin-top: 0;
+	font-size: clamp(2.7rem, 6vw, 4.25rem);
+	line-height: 1;
+}
+
+.falah-surah-name-glyph {
+	direction: ltr;
+	display: inline-block;
+	font-family: "surah-name-v4-icon", var(--font-arabic, serif);
+	font-variant-ligatures: common-ligatures;
+	font-feature-settings: "liga" 1;
+	font-weight: normal;
+	letter-spacing: 0;
+	unicode-bidi: isolate;
+}
+
+.falah-reader-title {
+	margin-top: 2px;
+	font-size: clamp(1rem, 2vw, 1.2rem);
+	font-weight: 620;
+	letter-spacing: 0.025em;
+}
+
+.falah-reader-head > .falah-reader-subtitle {
+	display: block;
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+}
+
+.falah-reader-head-meta {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 8px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.falah-reader-head-meta > span + span::before {
+	content: "·";
+	margin-right: 8px;
+	color: color-mix(in srgb, var(--interactive-accent) 55%, var(--text-faint));
+}
+
+.falah-reader-compare-warning {
+	max-width: 640px;
+	margin: 16px auto 0;
+	padding: 8px 12px;
+	color: var(--text-warning);
+	font-size: var(--font-ui-small);
+	background: color-mix(in srgb, var(--background-modifier-error) 10%, transparent);
+	border: 1px solid color-mix(in srgb, var(--text-warning) 32%, transparent);
+	border-radius: var(--radius-s);
+}
+
+.falah-reader-comparison-cell {
+	padding: var(--size-4-4);
+	background: color-mix(in srgb, var(--background-secondary) 66%, transparent);
+	border-color: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+	border-left: 2px solid color-mix(in srgb, var(--interactive-accent) 58%, transparent);
+}
+
+.falah-reader-comparison-title {
+	color: color-mix(in srgb, var(--interactive-accent) 72%, var(--text-normal));
+	letter-spacing: 0.015em;
+}
+
+.falah-reader-comparison-text {
+	line-height: 1.62;
+}
+
+.falah-icon-button,
+.falah-reader-btn.falah-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: var(--input-height);
+	height: var(--input-height);
+	min-width: var(--input-height);
+	padding: 0;
+	line-height: 1;
+}
+
+.falah-icon-button svg {
+	width: 16px;
+	height: 16px;
+	stroke-width: 2;
+}
+
+.falah-icon-button.is-favourite,
+.falah-bookmark-star.is-favourite {
+	color: var(--interactive-accent);
+}
+
+.falah-icon-button.is-favourite svg,
+.falah-bookmark-star.is-favourite svg {
+	fill: currentColor;
+}
+
+.falah-bookmarks-favourites-head,
+.falah-bookmarks-new,
+.falah-bookmark-recent-save {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.falah-bookmarks-heading-icon {
+	display: inline-flex;
+	color: var(--interactive-accent);
+}
+
+.falah-bookmarks-heading-icon svg {
+	width: 15px;
+	height: 15px;
+	fill: currentColor;
+}
+
+/* Bookmarks — compact, theme-native library ----------------------------- */
+.falah-bookmarks {
+	padding: 14px 12px 24px;
+}
+
+.falah-bookmarks-header {
+	min-height: 32px;
+	margin-bottom: 8px;
+}
+
+.falah-bookmarks-header h2 {
+	margin: 0;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	letter-spacing: -0.015em;
+}
+
+.falah-bookmarks-new {
+	display: inline-flex;
+	width: auto;
+	min-height: 30px;
+	margin: 0 0 16px;
+	padding: 4px 8px;
+	border: 0;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.falah-bookmarks-new:hover {
+	border-color: transparent;
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.falah-bookmarks-new svg {
+	width: 15px;
+	height: 15px;
+}
+
+.falah-bookmarks-section,
+.falah-bookmark-collection {
+	margin: 0 0 18px;
+}
+
+.falah-bookmarks h3,
+.falah-bookmarks-recent-head,
+.falah-bookmark-collection-head {
+	margin: 0 0 5px;
+}
+
+.falah-bookmarks h3,
+.falah-bookmarks-recent-title,
+.falah-bookmark-collection-head {
+	font-size: 11px;
+	font-weight: var(--font-semibold);
+	letter-spacing: 0.055em;
+}
+
+.falah-bookmarks h3 {
+	display: flex;
+	align-items: center;
+	min-height: 26px;
+}
+
+.falah-bookmarks-favourites-head {
+	color: var(--text-muted);
+}
+
+.falah-bookmarks-heading-icon {
+	color: var(--interactive-accent);
+}
+
+.falah-bookmarks-recent-head {
+	min-height: 26px;
+}
+
+.falah-bookmarks-recent-clear {
+	min-height: 24px;
+	padding: 2px 5px;
+	border-radius: var(--radius-s);
+	font-size: 11px;
+}
+
+.falah-bookmarks-recent-clear:hover {
+	background: var(--background-modifier-hover);
+}
+
+.falah-bookmark-row,
+.falah-bookmark-recent-row {
+	position: relative;
+	width: 100%;
+	min-height: 38px;
+	gap: 4px;
+	padding: 3px 4px;
+	border-radius: 5px;
+}
+
+.falah-bookmark-row + .falah-bookmark-row,
+.falah-bookmark-recent-row + .falah-bookmark-recent-row {
+	border-top: 1px solid var(--background-modifier-border-hover);
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+
+.falah-bookmark-row:has(+ .falah-bookmark-row),
+.falah-bookmark-recent-row:has(+ .falah-bookmark-recent-row) {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.falah-bookmark-star,
+.falah-bookmark-remove {
+	width: 30px;
+	height: 30px;
+	min-width: 30px;
+	min-height: 30px;
+	padding: 0;
+	border-radius: var(--radius-s);
+}
+
+.falah-bookmark-star:hover,
+.falah-bookmark-remove:hover {
+	background: var(--background-modifier-hover);
+}
+
+.falah-bookmark-star svg,
+.falah-bookmark-remove svg {
+	width: 15px;
+	height: 15px;
+}
+
+.falah-bookmark-main {
+	justify-content: center;
+	min-height: 30px;
+	padding: 3px 5px;
+	border-radius: 4px;
+	font-size: var(--font-ui-small);
+}
+
+.falah-bookmark-label {
+	font-weight: var(--font-normal);
+}
+
+.falah-bookmark-note {
+	font-size: 11px;
+}
+
+.falah-bookmark-remove {
+	color: var(--text-faint);
+}
+
+.falah-bookmark-remove:hover {
+	color: var(--text-error);
+}
+
+.falah-bookmark-recent-row {
+	min-height: 34px;
+	color: var(--text-muted);
+}
+
+.falah-bookmark-recent-row .falah-bookmark-main {
+	min-height: 28px;
+	padding-inline-start: 6px;
+}
+
+.falah-bookmark-recent-save {
+	min-height: 28px;
+	padding: 3px 6px;
+	border-radius: var(--radius-s);
+	font-size: 11px;
+}
+
+.falah-bookmark-recent-save:hover {
+	background: var(--background-modifier-hover);
+}
+
+.falah-bookmark-collection {
+	padding-top: 2px;
+}
+
+.falah-bookmark-collection-head {
+	min-height: 34px;
+	padding: 3px 4px;
+	border-top: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	color: var(--text-muted);
+}
+
+.falah-bookmark-collection-head:hover {
+	border-radius: 5px;
+}
+
+.falah-bookmark-collection-toggle {
+	min-height: 28px;
+	gap: 5px;
+}
+
+.falah-bookmark-collection-chevron {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+}
+
+.falah-bookmark-collection-chevron svg {
+	width: 14px;
+	height: 14px;
+}
+
+.falah-bookmark-collection-count {
+	font-variant-numeric: tabular-nums;
+	font-weight: var(--font-normal);
+	letter-spacing: 0;
+}
+
+.falah-bookmark-collection-menu {
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	min-height: 28px;
+	padding: 0;
+}
+
+@media (hover: none), (pointer: coarse) {
+	.falah-bookmark-star,
+	.falah-bookmark-remove,
+	.falah-bookmark-collection-menu {
+		min-width: 36px;
+		min-height: 36px;
+	}
+}
+
+/* Settings — compact, theme-native control surface ---------------------- */
+.falah-settings-shell {
+	display: block;
+	width: min(100%, 920px);
+	margin: 0 auto;
+}
+
+.falah-settings-topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 18px;
+}
+
+.falah-settings-nav {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 4px;
+	width: fit-content;
+	max-width: 100%;
+	margin: 0;
+	padding: 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.falah-settings-nav-item {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-width: 108px;
+	min-height: var(--input-height);
+	padding: 6px 12px;
+	border: 0;
+	border-radius: calc(var(--radius-m) - 2px);
+	box-shadow: none;
+	color: var(--text-muted);
+	background: transparent;
+}
+
+.falah-settings-nav-item:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.falah-settings-nav-item.is-active {
+	color: var(--text-accent);
+	background: var(--background-modifier-hover);
+	box-shadow: inset 0 -2px 0 var(--interactive-accent);
+}
+
+.falah-settings-nav-item svg {
+	width: 16px;
+	height: 16px;
+}
+
+.falah-settings-search {
+	width: min(230px, 34%);
+	min-width: 160px;
+}
+
+.falah-settings-content {
+	width: 100%;
+	min-width: 0;
+}
+
+.falah-settings-page-intro {
+	margin: 0 2px 18px;
+}
+
+.falah-settings-page-intro h2 {
+	margin: 0 0 4px;
+	font-size: var(--h2-size);
+	line-height: 1.25;
+}
+
+.falah-settings-page-intro p {
+	max-width: 68ch;
+	margin: 0;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.falah-settings-section {
+	margin: 0 0 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	overflow: clip;
+}
+
+.falah-settings-section[hidden] { display: none; }
+
+.falah-settings-section-summary {
+	display: grid;
+	grid-template-columns: 34px minmax(0, 1fr) 24px;
+	align-items: center;
+	gap: 10px;
+	min-height: 62px;
+	padding: 10px 14px;
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+
+.falah-settings-section-summary::-webkit-details-marker,
+.falah-settings-section-summary::marker { display: none; }
+
+.falah-settings-section-summary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.falah-settings-section-summary:focus-visible {
+	outline: 2px solid var(--background-modifier-border-focus);
+	outline-offset: -2px;
+}
+
+.falah-settings-section-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--radius-s);
+	color: var(--text-accent);
+	background: var(--background-modifier-hover);
+}
+
+.falah-settings-section-icon svg {
+	width: 17px;
+	height: 17px;
+}
+
+.falah-settings-section-copy h3 {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	line-height: 1.3;
+}
+
+.falah-settings-section-copy p {
+	margin: 2px 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+}
+
+.falah-settings-section-chevron {
+	display: inline-flex;
+	color: var(--text-faint);
+	transition: transform 160ms ease-out;
+}
+
+.falah-settings-section-chevron svg {
+	width: 16px;
+	height: 16px;
+}
+
+.falah-settings-section[open] > .falah-settings-section-summary {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.falah-settings-section[open] > .falah-settings-section-summary .falah-settings-section-chevron {
+	transform: rotate(90deg);
+}
+
+.falah-settings-section-body {
+	padding: 0 14px 8px;
+	background: var(--background-primary);
+}
+
+.falah-settings-section-body > .setting-item:not(.setting-item-heading) {
+	display: grid;
+	grid-template-columns: minmax(210px, 1fr) minmax(220px, 390px);
+	align-items: center;
+	gap: 16px;
+	min-height: 0;
+	margin: 0;
+	padding: 12px 2px;
+	border: 0;
+	border-top: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
+.falah-settings-section-body > .setting-item:first-child {
+	border-top: 0;
+}
+
+/* Some themes turn every Setting into a card. Inside our section surface that
+   creates distracting card-within-card nesting, so keep rows intentionally flat. */
+.modal.mod-settings .falah-settings-content .falah-settings-section-body > .setting-item:not(.setting-item-heading) {
+	margin: 0 !important;
+	padding: 12px 2px;
+	border: 0 !important;
+	border-top: 1px solid var(--background-modifier-border) !important;
+	border-radius: 0 !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+.modal.mod-settings .falah-settings-content .falah-settings-section-body > .setting-item:first-child {
+	border-top: 0;
+}
+
+.falah-settings-content .setting-item-info,
+.falah-settings-content .setting-item-control {
+	width: auto;
+	min-width: 0;
+	margin: 0;
+}
+
+.falah-settings-content .setting-item-control {
+	display: flex;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.falah-settings-content .setting-item-control select,
+.falah-settings-content .setting-item-control input[type="text"],
+.falah-settings-content .setting-item-control input[type="search"] {
+	flex: 1 1 170px;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.falah-font-picker {
+	display: grid;
+	gap: 6px;
+	width: min(100%, 390px);
+}
+
+.falah-font-select {
+	width: 100%;
+}
+
+.falah-font-custom {
+	display: flex;
+	width: 100%;
+}
+
+.falah-font-custom.is-hidden { display: none; }
+
+.falah-font-custom input { width: 100%; }
+
+.falah-font-preview {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	min-width: 0;
+	padding: 5px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+
+.falah-font-preview-label {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.falah-font-preview-sample {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--text-normal);
+	direction: rtl;
+	font-size: 1.12rem;
+	line-height: 1.55;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.falah-settings-content .setting-item-description {
+	max-width: 52ch;
+	line-height: 1.45;
+}
+
+.falah-settings-subheading {
+	margin: 16px 2px 2px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.falah-settings-empty-search {
+	padding: 32px 12px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.falah-settings-section-chevron { transition: none; }
+}
+
+@media (max-width: 760px) {
+	.falah-reader-toolbar {
+		padding: 7px 8px 9px;
+	}
+
+	.falah-reader-toolbar-primary { flex-wrap: wrap; }
+
+	.falah-reader-toolbar-navigation {
+		order: 3;
+		width: 100%;
+	}
+
+	.falah-reader-toolbar-settings { margin-inline-start: auto; }
+
+	.falah-reader-options-panel {
+		grid-template-columns: 1fr;
+	}
+
+	.falah-reader-options-section,
+	.falah-reader-options-section:first-child {
+		padding: 10px 2px;
+		border-inline-end: 0;
+		border-bottom: 1px solid var(--background-modifier-border);
+	}
+
+	.falah-reader-options-section:last-child { border-bottom: 0; }
+
+	.falah-reader-audio { grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; }
+	.falah-reader-audio-eyebrow { display: none; }
+	.falah-reader-audio-now-playing { grid-template-columns: 1fr; }
+	.falah-reader-audio-position { overflow: hidden; text-overflow: ellipsis; }
+
+	.falah-settings-nav {
+		width: 100%;
+	}
+
+	.falah-settings-topbar {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.falah-settings-search {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.falah-settings-nav-item {
+		flex: 1 1 0;
+		min-width: 0;
+		padding-inline: 8px;
+	}
+
+	.falah-settings-section-body > .setting-item:not(.setting-item-heading) {
+		grid-template-columns: 1fr;
+		gap: 10px;
+	}
+
+	.falah-settings-content .setting-item-control {
+		justify-content: flex-start;
+		width: 100%;
+	}
+
+	.falah-font-picker { width: 100%; }
+}
+
+@media (max-width: 520px) {
+	.falah-reader-toolbar-nav { display: none; }
+	.falah-reader-audio-status { display: none; }
+	.falah-reader-audio-utilities { gap: 2px; }
+	.falah-reader-audio-reciter { font-size: var(--font-ui-smaller); }
+}
+
+@media (pointer: coarse) {
+	.falah-reader-toolbar .falah-icon-button,
+	.falah-reader-toolbar .falah-reader-mode-switch button {
+		min-width: 44px;
+		min-height: 44px;
+	}
+}
+
+/* Reading mode — a quiet, page-faithful QCF4 Mushaf ---------------------- */
+.falah-reader-mode-switch {
+	display: inline-flex;
+	align-self: flex-start;
+	padding: 3px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.falah-reader-mode-switch button {
+	min-height: var(--input-height);
+	padding: 2px 13px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: 650;
+	background: transparent;
+	border: 0;
+	border-radius: var(--radius-s);
+	box-shadow: none;
+}
+
+.falah-reader-mode-switch button.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+}
+
+.falah-reader-toolbar.falah-mushaf-toolbar {
+	display: block;
+	padding: 6px 8px 7px;
+	background: var(--background-primary);
+	border-top: 0;
+	box-shadow: var(--shadow-s);
+}
+
+.falah-mushaf-toolbar .falah-reader-mode-switch { flex: 0 0 auto; }
+
+.falah-mushaf-navigation {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 6px;
+}
+
+.falah-mushaf-page-navigation {
+	flex: 0 0 auto;
+	padding-inline-start: 8px;
+	border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+.falah-mushaf-page-select {
+	width: 104px;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.falah-mushaf-juz {
+	min-width: 50px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	text-align: center;
+}
+
+.falah-mushaf-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+}
+
+.falah-mushaf-shortcut {
+	justify-self: end;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	letter-spacing: 0.03em;
+}
+
+.falah-reader-reading-mode .falah-reader-body {
+	padding: 0;
+	background: var(--background-primary);
+}
+
+.falah-mushaf-stage {
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: clamp(6px, 1.25vw, 14px) clamp(12px, 2.5vw, 28px) clamp(14px, 3vw, 30px);
+	background: var(--background-primary);
+}
+
+.falah-mushaf-page {
+	container-type: inline-size;
+	display: grid;
+	grid-template-rows: auto 1fr auto;
+	flex: 0 0 auto;
+	width: min(100%, 760px);
+	zoom: var(--falah-mushaf-scale, 1);
+	aspect-ratio: 0.7083;
+	padding: clamp(10px, 2.4cqw, 20px) clamp(14px, 5.5cqw, 42px) clamp(13px, 3.8cqw, 30px);
+	color: var(--text-normal);
+	background: var(--background-primary);
+	border: 0;
+	box-shadow: none;
+}
+
+.falah-reader-content,
+.falah-mushaf-stage {
+	animation: falah-reader-mode-enter 160ms ease-out both;
+}
+
+@keyframes falah-reader-mode-enter {
+	from { opacity: 0; transform: translateY(3px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+.falah-mushaf-folio,
+.falah-mushaf-page-footer {
+	direction: rtl;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: 24px;
+	color: var(--text-muted);
+	font-family: var(--font-arabic, serif);
+	font-size: clamp(11px, 1.75cqw, var(--font-ui-small));
+}
+
+.falah-mushaf-bottom-navigation {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	align-items: center;
+	width: min(100%, 760px);
+	margin-top: 10px;
+	padding: 2px 4px;
+	color: var(--text-faint);
+}
+
+.falah-mushaf-bottom-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	width: max-content;
+	min-height: 30px;
+	padding: 3px 7px;
+	border: 0;
+	border-radius: var(--radius-s);
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	opacity: 0.72;
+}
+
+.falah-mushaf-bottom-button.is-previous { justify-self: start; }
+.falah-mushaf-bottom-button.is-next { justify-self: end; }
+
+.falah-mushaf-bottom-button:hover,
+.falah-mushaf-bottom-button:focus-visible {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	opacity: 1;
+}
+
+.falah-mushaf-bottom-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.falah-mushaf-bottom-button:disabled {
+	background: transparent;
+	opacity: 0.25;
+}
+
+.falah-mushaf-bottom-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.falah-mushaf-bottom-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.falah-mushaf-bottom-current {
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.65;
+}
+
+.falah-mushaf-folio {
+	padding-bottom: 6px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.falah-mushaf-surah-names {
+	display: inline-flex;
+	direction: rtl;
+	align-items: center;
+	gap: 0.45em;
+	font-size: clamp(20px, 3.8cqw, 30px);
+	line-height: 1;
+}
+
+.falah-mushaf-surah-separator {
+	color: var(--text-faint);
+	font-family: var(--font-interface);
+	font-size: 0.45em;
+}
+
+.falah-mushaf-lines {
+	display: grid;
+	grid-template-rows: repeat(15, minmax(0, 1fr));
+	align-items: center;
+	min-height: 0;
+	padding-block: 1.4cqw;
+}
+
+.falah-mushaf-page.is-opening-page .falah-mushaf-lines {
+	grid-template-rows: repeat(8, minmax(0, 1fr));
+	padding-block: 14%;
+}
+
+.falah-mushaf-line {
+	display: flex;
+	direction: rtl;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	white-space: nowrap;
+	font-size: clamp(18px, 4.25cqw, 34px);
+	line-height: 1;
+}
+
+.falah-mushaf-page.is-text-font .falah-mushaf-line {
+	gap: 0.22em;
+	font-size: clamp(17px, 3.65cqw, 30px);
+	line-height: 1.15;
+}
+
+.falah-mushaf-page.is-text-font .falah-mushaf-word.is-end {
+	margin-inline: 0.08em 0.18em;
+	color: var(--text-accent);
+	font-size: 0.72em;
+}
+
+.falah-mushaf-options-panel {
+	grid-template-columns: minmax(220px, 1fr) auto;
+}
+
+.falah-mushaf-font-options select {
+	width: min(100%, 280px);
+}
+
+.falah-mushaf-size {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.falah-mushaf-size-value {
+	min-width: 42px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.falah-mushaf-word {
+	display: inline-block;
+	padding: 0;
+	color: inherit;
+	border-radius: 3px;
+	cursor: default;
+	transition: color var(--anim-duration-fast, 150ms) ease-out, background-color var(--anim-duration-fast, 150ms) ease-out;
+}
+
+.falah-mushaf-word-glyph { display: inline-block; }
+
+.falah-mushaf-word[role="button"] { cursor: pointer; }
+
+.falah-mushaf-word[role="button"]:hover,
+.falah-mushaf-word[role="button"]:focus-visible {
+	color: var(--text-accent-hover);
+	background: transparent;
+	filter: drop-shadow(0 0 0.1em color-mix(in srgb, var(--interactive-accent) 30%, transparent));
+}
+
+.falah-mushaf-word[role="button"]:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--interactive-accent) 72%, transparent);
+	outline-offset: 2px;
+}
+
+.falah-mushaf-word.is-selected {
+	color: color-mix(in srgb, var(--text-normal) 82%, var(--interactive-accent));
+	background: transparent;
+	outline: none;
+}
+
+.falah-mushaf-word.is-reciting,
+.falah-mushaf-word.is-reciting:hover,
+.falah-mushaf-word.is-reciting:focus-visible {
+	color: var(--text-accent);
+	background: transparent;
+	filter: drop-shadow(0 0 0.1em color-mix(in srgb, var(--interactive-accent) 38%, transparent));
+	outline: none;
+}
+
+.falah-mushaf-word.is-active,
+.falah-mushaf-word.is-active:hover,
+.falah-mushaf-word.is-active:focus-visible {
+	color: var(--text-accent);
+	background: transparent !important;
+	box-shadow: none !important;
+	filter: drop-shadow(0 0 0.14em color-mix(in srgb, var(--interactive-accent) 42%, transparent));
+	outline: none !important;
+}
+
+.falah-mushaf-word.is-active:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--interactive-accent) 72%, transparent) !important;
+	outline-offset: 2px !important;
+}
+
+.falah-mushaf-word.is-surah_header {
+	width: 100%;
+	font-size: 1.12em;
+	text-align: center;
+}
+
+.falah-mushaf-word.is-bismillah { font-size: 1.06em; }
+.falah-mushaf-word.is-quarter { color: var(--text-accent); }
+
+.falah-mushaf-page-footer {
+	direction: ltr;
+	padding-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.falah-mushaf-study-verse {
+	min-height: 24px;
+	padding: 1px 9px;
+	color: var(--text-accent);
+	font-family: var(--font-interface);
+	font-size: clamp(11px, 1.55cqw, var(--font-ui-smaller));
+	background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary));
+	border: 1px solid color-mix(in srgb, var(--interactive-accent) 30%, var(--background-modifier-border));
+	border-radius: var(--radius-s);
+	box-shadow: none;
+}
+
+.falah-mushaf-attribution {
+	margin-top: 12px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	letter-spacing: 0.06em;
+}
+
+.falah-mushaf-loading,
+.falah-mushaf-error {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	min-height: 70vh;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.falah-mushaf-loading-mark {
+	color: var(--interactive-accent);
+	font-size: 2rem;
+	animation: falah-mushaf-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.falah-mushaf-error p { max-width: 52ch; }
+.falah-mushaf-error button + button { margin-left: 6px; }
+
+@keyframes falah-mushaf-pulse { from { opacity: 0.35; transform: scale(0.92); } to { opacity: 1; transform: scale(1.04); } }
+
+@media (max-width: 700px) {
+	.falah-reader-toolbar.falah-mushaf-toolbar {
+		padding: 7px 8px 9px;
+	}
+	.falah-mushaf-toolbar .falah-reader-toolbar-primary { flex-wrap: wrap; }
+	.falah-mushaf-navigation { order: 3; width: 100%; justify-content: stretch; flex-wrap: wrap; }
+	.falah-mushaf-navigation .falah-reader-toolbar-surah { flex: 1 1 100%; }
+	.falah-mushaf-navigation .falah-mushaf-page-navigation { margin-inline-start: auto; }
+	.falah-mushaf-shortcut { display: none; }
+	.falah-mushaf-stage { justify-content: flex-start; padding: 10px 6px 20px; }
+	.falah-mushaf-page {
+		width: 100%;
+		padding-inline: 3.5cqw;
+		box-shadow: var(--shadow-s);
+	}
+	.falah-mushaf-options-panel { grid-template-columns: 1fr; }
+	.falah-reader-mode-switch button,
+	.falah-mushaf-icon-button { min-width: 44px; min-height: 44px; }
+	.falah-mushaf-line { font-size: clamp(14px, 4.25cqw, 26px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.falah-mushaf-loading-mark { animation: none; }
+	.falah-mushaf-word { transition: none; }
+	.falah-reader-content,
+	.falah-mushaf-stage { animation: none; }
+}
+
+/* Inline word analysis — the Arabic line is the detector ---------------- */
+.falah-reader-arabic-interactive {
+	display: flex;
+	direction: rtl;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: flex-start;
+	column-gap: 0.16em;
+	row-gap: 0.12em;
+	text-align: right;
+}
+
+.falah-reader-arabic-interactive .falah-reader-word {
+	display: inline-flex;
+	align-items: baseline;
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	margin: 0;
+	padding: 0.02em 0.1em 0.08em;
+	color: inherit;
+	font: inherit;
+	line-height: inherit;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid transparent;
+	border-radius: 4px;
+	box-shadow: none;
+	cursor: pointer;
+	text-decoration: none;
+	transition: color 100ms ease, border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.falah-reader-word-arabic { font-size: inherit; }
+
+.falah-reader-word-sr-gloss {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.falah-reader-arabic-interactive .falah-reader-word:hover {
+	color: var(--text-accent);
+	background: transparent !important;
+	border-bottom-color: transparent;
+	box-shadow: none !important;
+	filter: drop-shadow(0 0 0.12em color-mix(in srgb, var(--interactive-accent) 34%, transparent));
+	outline: none;
+}
+
+.falah-reader-arabic-interactive .falah-reader-word:focus-visible {
+	color: var(--text-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent) !important;
+	border-bottom-color: transparent;
+	border-radius: 0.22em;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+body .falah-reader-arabic-interactive button.falah-reader-word.is-active,
+body .falah-reader-arabic-interactive button.falah-reader-word.is-active:hover,
+body .falah-reader-arabic-interactive button.falah-reader-word.is-active:focus {
+	color: var(--text-accent);
+	background-color: transparent !important;
+	background-image: none !important;
+	border-bottom-color: transparent !important;
+	border-radius: 0;
+	box-shadow: none !important;
+	filter: drop-shadow(0 0 0.14em color-mix(in srgb, var(--interactive-accent) 42%, transparent));
+	outline: none !important;
+}
+
+body .falah-reader-arabic-interactive button.falah-reader-word.is-active:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--interactive-accent) 72%, transparent) !important;
+	outline-offset: 2px !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+.falah-reader-arabic-interactive .falah-reader-ayah-num {
+	align-self: center;
+	margin-inline-start: 0.18em;
+}
+
+.falah-reader-ayah-active {
+	background: transparent;
+	box-shadow: inset -2px 0 color-mix(in srgb, var(--interactive-accent) 48%, transparent);
+}
+
+.falah-word-popover {
+	--falah-morphology-accent: var(--interactive-accent);
+	position: fixed;
+	z-index: var(--layer-popover, 1000);
+	max-height: min(560px, calc(100vh - 24px));
+	padding: 0;
+	overflow: hidden;
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--background-primary) 88%, transparent);
+	-webkit-backdrop-filter: blur(18px) saturate(1.15);
+	backdrop-filter: blur(18px) saturate(1.15);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 76%, var(--interactive-accent));
+	border-radius: var(--radius-l);
+	box-shadow: var(--shadow-l);
+}
+
+.falah-word-popover.is-solid,
+.falah-word-inspector-modal.is-solid {
+	background: var(--background-primary);
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+
+.falah-word-popover .falah-word-inspector-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 11px 14px 9px;
+	background: color-mix(in srgb, var(--background-primary) 94%, var(--interactive-accent));
+	border-bottom: 1px solid var(--background-modifier-border);
+	cursor: grab;
+	touch-action: none;
+}
+
+.falah-word-popover.is-dragging {
+	box-shadow: var(--shadow-l);
+	user-select: none;
+}
+
+.falah-word-popover.is-dragging .falah-word-inspector-head { cursor: grabbing; }
+.falah-word-popover.is-fixed .falah-word-inspector-head { cursor: default; touch-action: auto; }
+
+.falah-word-inspector-identity { min-width: 0; }
+
+.falah-word-popover .falah-word-inspector-arabic {
+	margin: 0;
+	padding: 0;
+	color: var(--text-normal);
+	font-family: var(--font-arabic, "Noto Naskh Arabic", serif);
+	font-size: 1.85rem;
+	line-height: 1.1;
+	text-align: left;
+}
+
+.falah-word-inspector-coordinate {
+	margin-top: 1px;
+	color: var(--text-faint);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+}
+
+.falah-word-popover .falah-word-inspector-transliteration {
+	margin-top: 1px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.falah-word-inspector-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--input-height);
+	height: var(--input-height);
+	padding: 0;
+	color: var(--text-muted);
+	background: transparent;
+	border: 0;
+	border-radius: 50%;
+	box-shadow: none;
+}
+
+.falah-word-inspector-close:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+
+.falah-word-popover .falah-word-inspector-body {
+	max-height: min(460px, calc(100vh - 98px));
+	padding: 10px 14px 14px;
+	overflow-y: auto;
+}
+
+.falah-word-popover .falah-word-inspector-section h3 {
+	margin: 0 0 6px;
+	font-size: 0.9rem;
+	font-weight: 700;
+}
+
+.falah-word-popover .falah-word-inspector-section + .falah-word-inspector-section {
+	margin-top: 9px;
+	padding-top: 9px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.falah-word-popover .falah-word-inspector-meaning {
+	display: grid;
+	grid-template-columns: 5.8rem 1fr;
+	gap: 6px;
+	padding: 2px 0 5px;
+}
+
+.falah-word-popover .falah-word-inspector-gloss { font-size: 1.05em; }
+.falah-word-popover .falah-word-inspector-dictionary { padding-top: 4px; }
+.falah-word-popover .falah-word-inspector-dictionary ul { margin-block: 3px 0; }
+.falah-word-popover .falah-word-inspector-source { margin-top: 3px; }
+
+.falah-word-popover .falah-word-grammar-section {
+	margin-inline: -3px;
+	padding: 7px 8px 6px;
+	background: color-mix(in srgb, var(--falah-morphology-accent) 5%, transparent);
+	border: 1px solid color-mix(in srgb, var(--falah-morphology-accent) 30%, var(--background-modifier-border));
+	border-radius: 9px;
+}
+
+.falah-word-popover .falah-word-segments {
+	gap: 5px;
+	margin-top: 5px;
+}
+
+.falah-word-popover .falah-word-segment {
+	flex: 1 1 5.5rem;
+	min-width: 5.5rem;
+	padding: 5px 8px;
+}
+
+.falah-word-popover .falah-word-segment-form { font-size: 1.25em; line-height: 1.25; }
+.falah-word-popover .falah-word-segment-code { margin-top: 1px; }
+
+.falah-word-popover .falah-word-grammar-facts {
+	grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+	column-gap: 8px;
+	margin-top: 7px;
+}
+
+.falah-word-popover .falah-word-grammar-facts dt,
+.falah-word-popover .falah-word-grammar-facts dd { padding-block: 4px; }
+
+.falah-word-popover .falah-word-grammar-facts dt { font-size: var(--font-ui-smaller); }
+.falah-word-popover .falah-word-grammar-facts dd { font-size: var(--font-ui-small); }
+
+@media (max-width: 600px) {
+	.falah-word-popover {
+		top: auto !important;
+		bottom: 8px;
+		left: 8px !important;
+		width: calc(100vw - 16px) !important;
+		max-height: min(72vh, 560px);
+		border-radius: var(--radius-l) var(--radius-l) var(--radius-m) var(--radius-m);
+	}
+	.falah-word-inspector-close { min-width: 44px; min-height: 44px; }
+	.falah-word-popover .falah-word-inspector-head { cursor: default; touch-action: auto; }
+	.falah-word-popover .falah-word-inspector-body { max-height: calc(72vh - 105px); padding-inline: 15px; }
+	.falah-word-popover .falah-word-inspector-meaning { grid-template-columns: 1fr; gap: 3px; }
+	.falah-word-popover .falah-word-grammar-facts { grid-template-columns: minmax(5rem, 0.42fr) 1fr; column-gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.falah-reader-arabic-interactive .falah-reader-word { transition: none; }
 }

@@ -7,7 +7,8 @@ import amiriQuran from "../assets/fonts/amiri-quran.woff2";
 import kfgqpcHafs from "../assets/fonts/kfgqpc-hafs.woff2";
 import pdmsSaleem from "../assets/fonts/pdms-saleem.ttf";
 import notoNaskh from "../assets/fonts/noto-naskh.woff2";
-import { BUNDLED_FONTS, dedupeFamilies, familyFromFontFile } from "./fonts";
+import surahNameV4 from "../assets/fonts/surah-name-v4.woff2";
+import { BUNDLED_FONTS, SURAH_NAME_FONT_FAMILY, dedupeFamilies, familyFromFontFile } from "./fonts";
 
 const BUNDLED_URLS: Record<string, string> = {
 	"amiri-quran.woff2": amiriQuran,
@@ -54,11 +55,24 @@ export async function enumerateSystemFonts(): Promise<string[]> {
 export class FontManager {
 	private css = "";
 	private vault: LoadedFont[] = [];
+	private system: string[] = [];
 
 	constructor(private app: App, private fontsDir: string) {}
 
 	vaultFamilies(): string[] {
 		return this.vault.map((f) => f.family);
+	}
+
+	systemFamilies(): string[] {
+		return [...this.system];
+	}
+
+	/** Request access to the desktop OS font catalogue. Chromium only exposes
+	 * this list after a user gesture, so Settings calls it from an explicit
+	 * button and the manager retains the result across subsequent re-renders. */
+	async detectSystemFonts(): Promise<string[]> {
+		this.system = await enumerateSystemFonts();
+		return this.systemFamilies();
 	}
 
 	/** Re-scan the vault fonts folder, rebuild the @font-face CSS, and re-inject
@@ -70,7 +84,12 @@ export class FontManager {
 			url: BUNDLED_URLS[f.file],
 			format: formatFor(f.file),
 		}));
-		this.css = [...bundled, ...this.vault].map(faceRule).join("\n");
+		const surahNames: LoadedFont = {
+			family: SURAH_NAME_FONT_FAMILY,
+			url: surahNameV4,
+			format: "woff2",
+		};
+		this.css = [surahNames, ...bundled, ...this.vault].map(faceRule).join("\n");
 		this.injectInto(document);
 	}
 

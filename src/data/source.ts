@@ -35,6 +35,10 @@ export interface SurahReading {
 	/** A standalone Bismillah header is shown for every surah except 1 (where it
 	 *  is ayah 1) and 9 (which has none). */
 	showBismillah: boolean;
+	/** Translation of the standalone Bismillah, sourced from 1:1 in the selected
+	 *  translation pack. Omitted when translations are disabled or 1:1 is not
+	 *  available in that pack. */
+	bismillahTranslation?: string;
 	translationName?: string;
 	tafsirName?: string;
 	ayahs: ReadingAyah[];
@@ -205,6 +209,7 @@ export class QuranDataSource implements ContentSource {
 
 			const translations = new Map<string, string>();
 			let translationName: string | undefined;
+			let bismillahTranslation: string | undefined;
 			if (prefs.translationId) {
 				try {
 					const verses = await this.getTranslation(prefs.translationId, from, to);
@@ -212,6 +217,17 @@ export class QuranDataSource implements ContentSource {
 					translationName = (await this.listResources()).find((r) => r.id === prefs.translationId)?.name;
 				} catch (e) {
 					if (!degradable(e)) throw e;
+				}
+
+				if (n !== 1 && n !== 9) {
+					try {
+						const [verse] = await this.getTranslation(prefs.translationId, "1:1", "1:1");
+						bismillahTranslation = verse?.text.trim() || undefined;
+					} catch (e) {
+						// Some otherwise complete translation packs omit a separate Surah 1
+						// file. Keep the selected surah translation and simply omit the caption.
+						if (!degradable(e)) throw e;
+					}
 				}
 			}
 
@@ -238,7 +254,14 @@ export class QuranDataSource implements ContentSource {
 				tafsir: tafsirs.get(a.ayahKey),
 			}));
 
-			return { surah, showBismillah: n !== 1 && n !== 9, translationName, tafsirName, ayahs };
+			return {
+				surah,
+				showBismillah: n !== 1 && n !== 9,
+				bismillahTranslation,
+				translationName,
+				tafsirName,
+				ayahs,
+			};
 		});
 	}
 

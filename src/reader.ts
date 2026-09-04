@@ -2,39 +2,46 @@
 // switchable script/translation/tafsir. Docks beside notes or pops out to its own
 // OS window (Quran Reader Phase 1). Obsidian-runtime module (not vitest-importable).
 
-import { ItemView, Menu } from "obsidian";
+import { ItemView, setIcon } from "obsidian";
 import type { ViewStateResult, WorkspaceLeaf } from "obsidian";
 import type FalahPlugin from "./main";
-import type { ArabicScript, ResourceDescriptor, Surah } from "./data/schema";
+import type { ResourceDescriptor, Surah } from "./data/schema";
 import type { ReadingAyah, SurahReading } from "./data/source";
-import type { VerseContext, VerseMenuItem, VerseView } from "./verse-actions";
+import type { VerseContext, VerseView } from "./verse-actions";
 import { parseAyahKey } from "./ref";
-import { bundledFontsForScript, dedupeFamilies } from "./fonts";
 import { errMsg } from "./providers";
 import { t } from "./i18n";
-import { juzOf } from "./nav/locate";
 import type { QuranNav } from "./nav/schema";
+import { RECITERS } from "./audio/recitation";
+import type { RecitationState } from "./audio/recitation";
+import { ReaderAudioControls } from "./reader/audio-controls";
+import {
+	loadReaderEnhancements,
+	loadWordRowsForAyahKeys,
+	renderComparisonGrid,
+	renderInteractiveArabic,
+	type ComparisonRow,
+	type ComparisonFailure,
+} from "./reader/enhancements";
+import {
+	DEFAULT_READER_FONT,
+	MAX_READER_FONT,
+	MIN_READER_FONT,
+	type ReaderState,
+} from "./reader/state";
+import { renderReaderToolbar } from "./reader/toolbar";
+import { readerSurahName, surahNameFontLigature } from "./reader/surah-name";
+import { openVerseActionMenu, renderTafsirBlock } from "./reader/verse-menu";
+import type { WordViewModel } from "./word-by-word/model";
+import { closeWordInspector, openWordInspector } from "./word-by-word/inspector";
+import { pageOf } from "./nav/locate";
+import { QCF_PAGE_COUNT } from "./qcf/schema";
+import { renderMushafPage, renderMushafToolbar, type MushafViewActions } from "./qcf/view";
 
 export const VIEW_TYPE_QURAN_READER = "falah-quran-reader";
 
-const ARABIC_RE = /[؀-ۿ]/;
 const BISMILLAH = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ";
-const DEFAULT_FONT = 28;
-const MIN_FONT = 16;
-const MAX_FONT = 64;
-
-interface ReaderState {
-	surah: number;
-	ayah?: number;
-	script: ArabicScript;
-	translationId: string;
-	tafsirId: string;
-	fontSize: number;
-	/** Focus mode: collapses the toolbar to a thin handle. Manual toggle only —
-	 *  never auto-hidden by scroll or hover. */
-	toolbarCollapsed?: boolean;
-}
-
+const BISMILLAH_LIGATURE = "﷽";
 export class QuranReaderView extends ItemView implements VerseView {
 	private state: ReaderState;
 	private toolbarEl!: HTMLElement;
@@ -47,16 +54,35 @@ export class QuranReaderView extends ItemView implements VerseView {
 	/** The surah currently rendered (for single-row re-render on toggle). */
 	private renderedSurah?: number;
 	private currentReading?: SurahReading;
+	private readerSurahs: Surah[] = [];
+	private readerResources: ResourceDescriptor[] = [];
+	private comparisonRows = new Map<string, ComparisonRow>();
+	private comparisonFailures: ComparisonFailure[] = [];
+	private wordRows = new Map<string, WordViewModel[]>();
+	private wordResourceMissing = false;
+	private progressFramePending = false;
+	private audioControls: ReaderAudioControls;
+	private readerNav?: QuranNav;
+	private followedRecitationKey?: string;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FalahPlugin) {
 		super(leaf);
 		this.state = {
+			mode: "study",
 			surah: 1,
 			script: plugin.settings.arabicScript,
 			translationId: plugin.settings.translationResourceId,
 			tafsirId: plugin.settings.tafsirResourceId,
-			fontSize: DEFAULT_FONT,
+			compareIds: [],
+			fontSize: DEFAULT_READER_FONT,
 		};
+		this.audioControls = new ReaderAudioControls(plugin.recitation, {
+			currentRef: () => ({ surah: this.state.surah, ayah: this.currentAyah() }),
+			reciterName: () => RECITERS.find((reciter) => reciter.id === plugin.settings.reciterId)?.name ?? t().setReciterName,
+			toolbar: () => this.toolbarEl,
+			body: () => this.bodyEl,
+			onRecitationChange: (state) => this.syncReadingRecitation(state),
+		});
 	}
 
 	getViewType(): string {
@@ -75,6 +101,9 @@ export class QuranReaderView extends ItemView implements VerseView {
 
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		if (state && typeof state === "object") Object.assign(this.state, state as Partial<ReaderState>);
+		if (this.state.mode !== "reading") this.state.mode = "study";
+		this.state.readingTextFont = this.state.readingTextFont === true;
+		if (this.state.page !== undefined) this.state.page = Math.max(1, Math.min(QCF_PAGE_COUNT, Math.round(this.state.page)));
 		// Let the base View record navigation/ephemeral state; skipping this can make
 		// Obsidian treat the view as not-restored and open a fresh empty tab.
 		await super.setState(state, result);
@@ -82,11 +111,42 @@ export class QuranReaderView extends ItemView implements VerseView {
 	}
 
 	async onOpen(): Promise<void> {
+		closeWordInspector(this.contentEl.ownerDocument);
 		this.contentEl.empty();
 		this.contentEl.addClass("falah-reader");
+		this.applyStudyFontSize();
 		this.toolbarEl = this.contentEl.createDiv({ cls: "falah-reader-toolbar" });
 		this.bodyEl = this.contentEl.createDiv({ cls: "falah-reader-body" });
+		this.registerDomEvent(this.bodyEl, "scroll", () => this.scheduleProgressCapture(), { passive: true });
+		this.contentEl.tabIndex = -1;
+		this.registerDomEvent(this.contentEl, "keydown", (event) => this.handleReadingKey(event));
+		this.audioControls.connect();
 		await this.render();
+	}
+
+	private scheduleProgressCapture(): void {
+		if (!this.plugin.settings.progressEnabled || this.progressFramePending) return;
+		this.progressFramePending = true;
+		const win = this.bodyEl.ownerDocument.defaultView;
+		(win?.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.requestAnimationFrame(callback)))(() => {
+			this.progressFramePending = false;
+			this.captureProgress();
+		});
+	}
+
+	private captureProgress(): void {
+		if (this.state.mode === "reading") {
+			this.plugin.progress.record({ surah: this.state.surah, ayah: this.currentAyah(), scrollAnchor: `${this.state.surah}:${this.currentAyah()}` });
+			return;
+		}
+		const rows = Array.from(this.bodyEl.querySelectorAll<HTMLElement>(".falah-reader-ayah"));
+		if (!rows.length) return;
+		const top = this.bodyEl.getBoundingClientRect().top + 8;
+		const row = rows.find((candidate) => candidate.getBoundingClientRect().bottom >= top) ?? rows.at(-1);
+		const ayah = Number(row?.dataset.ayah);
+		const scrollAnchor = row?.dataset.ayahKey;
+		if (!scrollAnchor || !Number.isInteger(ayah)) return;
+		this.plugin.progress.record({ surah: this.state.surah, ayah, scrollAnchor });
 	}
 
 	/** Rebuild the toolbar so a just-installed/removed translation or tafsir appears
@@ -95,6 +155,10 @@ export class QuranReaderView extends ItemView implements VerseView {
 	 *  after a download/import/remove in the settings tab. */
 	async refresh(): Promise<void> {
 		if (!this.toolbarEl) return;
+		if (this.state.mode === "reading") {
+			await this.render();
+			return;
+		}
 		try {
 			const [surahs, resources, nav] = await Promise.all([
 				this.plugin.registry.core.getSurahs(),
@@ -133,6 +197,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 	 *  around it here rather than inside renderBody, which navigation also relies on
 	 *  for its own scroll-to-selected-ayah behavior. */
 	refreshRows(): void {
+		if (this.state.mode === "reading") return;
 		const body = this.bodyEl;
 		const prev = body.scrollTop;
 		void this.renderBody().then(() => {
@@ -144,6 +209,9 @@ export class QuranReaderView extends ItemView implements VerseView {
 	navigateTo(surah: number, ayah?: number): void {
 		this.state.surah = surah;
 		this.state.ayah = ayah;
+		if (this.state.mode === "reading" && this.readerNav) {
+			this.state.page = pageOf(this.readerNav, surah, ayah ?? 1)?.n ?? 1;
+		}
 		this.persistState();
 		void this.render();
 	}
@@ -172,6 +240,15 @@ export class QuranReaderView extends ItemView implements VerseView {
 			this.bodyEl.createDiv({ cls: "falah-error", text: errMsg(e) });
 			return;
 		}
+		this.readerNav = nav;
+		this.readerSurahs = surahs;
+		this.readerResources = resources;
+		this.contentEl.toggleClass("falah-reader-reading-mode", this.state.mode === "reading");
+		if (this.state.mode === "reading") {
+			await this.renderReadingMode(nav);
+			return;
+		}
+		this.toolbarEl.removeClass("falah-mushaf-toolbar");
 		this.buildToolbar(surahs, resources, nav);
 		await this.renderBody();
 	}
@@ -186,134 +263,55 @@ export class QuranReaderView extends ItemView implements VerseView {
 	}
 
 	private buildToolbar(surahs: Surah[], resources: ResourceDescriptor[], nav: QuranNav): void {
-		const strings = t();
-		const toolbar = this.toolbarEl;
-		toolbar.empty();
-		toolbar.toggleClass("falah-reader-toolbar-collapsed", !!this.state.toolbarCollapsed);
-
-		const controls = toolbar.createDiv({ cls: "falah-reader-toolbar-controls" });
-
-		const navGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
-		const prev = navGroup.createEl("button", { text: "‹", cls: "falah-reader-btn" });
-		prev.disabled = this.state.surah <= 1;
-		prev.onclick = () => this.goSurah(this.state.surah - 1);
-
-		const surahSel = navGroup.createEl("select", { cls: "dropdown" });
-		for (const s of surahs) {
-			surahSel.createEl("option", {
-				value: String(s.number),
-				text: strings.readerSurahOption(s.number, s.nameEnglish, s.nameArabic),
-			});
-		}
-		surahSel.value = String(this.state.surah);
-		surahSel.onchange = () => this.goSurah(Number(surahSel.value));
-
-		const next = navGroup.createEl("button", { text: "›", cls: "falah-reader-btn" });
-		next.disabled = this.state.surah >= 114;
-		next.onclick = () => this.goSurah(this.state.surah + 1);
-
-		const juzGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-nav" });
-		const cur = juzOf(nav, this.state.surah, this.currentAyah());
-		const jprev = juzGroup.createEl("button", { text: strings.readerJuzPrev, cls: "falah-reader-btn" });
-		jprev.disabled = !cur || cur.n <= 1;
-		jprev.onclick = () => {
-			const p = nav.juz[cur!.n - 1 - 1];
-			if (p) this.navigateTo(p.surah, p.ayah);
-		};
-		juzGroup.createSpan({ cls: "falah-reader-juz-label", text: strings.readerJuzLabel(cur?.n ?? 1) });
-		const jnext = juzGroup.createEl("button", { text: strings.readerJuzNext, cls: "falah-reader-btn" });
-		jnext.disabled = !cur || cur.n >= 30;
-		jnext.onclick = () => {
-			const p = nav.juz[cur!.n - 1 + 1];
-			if (p) this.navigateTo(p.surah, p.ayah);
-		};
-
-		const scriptFontGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-cluster-script-font" });
-		const scriptWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-script" });
-		const scriptSel = scriptWrap.createEl("select", { cls: "dropdown" });
-		scriptSel.createEl("option", { value: "uthmani", text: strings.readerScriptUthmani });
-		scriptSel.createEl("option", { value: "indopak", text: strings.readerScriptIndopak });
-		scriptSel.value = this.state.script;
-		scriptSel.onchange = () => {
-			this.state.script = scriptSel.value;
-			this.persistState();
-			void this.render();
-		};
-
-		const fontWrap = scriptFontGroup.createDiv({ cls: "falah-reader-toolbar-font" });
-		const fontSel = fontWrap.createEl("select", { cls: "dropdown" });
-		const fontFams = dedupeFamilies([
-			...bundledFontsForScript(this.state.script).map((f) => f.family),
-			...this.plugin.fonts.vaultFamilies(),
-			this.plugin.settings.fontByScript[this.state.script],
-		]);
-		for (const fam of fontFams) fontSel.createEl("option", { value: fam, text: fam });
-		fontSel.value = this.plugin.settings.fontByScript[this.state.script] ?? "";
-		fontSel.onchange = () => {
-			this.plugin.settings.fontByScript[this.state.script] = fontSel.value;
-			void this.plugin.persist();
-			void this.renderBody();
-		};
-
-		const trTfGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
-		const trSel = trTfGroup.createEl("select", { cls: "dropdown" });
-		trSel.createEl("option", { value: "", text: strings.readerNoTranslation });
-		for (const r of resources.filter((r) => r.type === "translation")) {
-			trSel.createEl("option", { value: r.id, text: r.tier === "bundled" ? strings.readerResourceDefault(r.name) : r.name });
-		}
-		trSel.value = this.state.translationId;
-		trSel.onchange = () => {
-			this.state.translationId = trSel.value;
-			this.persistState();
-			void this.renderBody();
-		};
-
-		const tfWrap = trTfGroup.createDiv({ cls: "falah-reader-toolbar-tafsir" });
-		const tfSel = tfWrap.createEl("select", { cls: "dropdown" });
-		tfSel.createEl("option", { value: "", text: strings.readerNoTafsir });
-		for (const r of resources.filter((r) => r.type === "tafsir")) {
-			tfSel.createEl("option", { value: r.id, text: r.name });
-		}
-		tfSel.value = this.state.tafsirId;
-		tfSel.onchange = () => {
-			this.state.tafsirId = tfSel.value;
-			this.persistState();
-			void this.renderBody();
-		};
-
-		const sizeGroup = controls.createDiv({ cls: "falah-reader-toolbar-group falah-reader-toolbar-cluster-size" });
-		const sizeWrap = sizeGroup.createDiv({ cls: "falah-reader-toolbar-size" });
-		const dec = sizeWrap.createEl("button", { text: "A−", cls: "falah-reader-btn" });
-		dec.onclick = () => this.setFont(this.state.fontSize - 2);
-		const inc = sizeWrap.createEl("button", { text: "A+", cls: "falah-reader-btn" });
-		inc.onclick = () => this.setFont(this.state.fontSize + 2);
-
-		const endGroup = controls.createDiv({ cls: "falah-reader-toolbar-group" });
-		// Pop-out button only when not already in a pop-out window.
-		if (this.containerEl.ownerDocument === document) {
-			const popWrap = endGroup.createDiv({ cls: "falah-reader-toolbar-popout" });
-			const pop = popWrap.createEl("button", {
-				text: "⤢",
-				cls: "falah-reader-btn",
-				attr: { "aria-label": strings.readerPopOutAriaLabel },
-			});
-			pop.onclick = () => this.plugin.app.workspace.moveLeafToPopout(this.leaf);
-		}
-
-		// Always visible (outside `controls`) so it survives its own collapsed state.
-		const collapseBtn = toolbar.createEl("button", {
-			text: this.state.toolbarCollapsed ? "︾" : "︿",
-			cls: "falah-reader-btn falah-reader-toolbar-collapse-btn",
-			attr: {
-				"aria-label": strings.readerToggleToolbarAriaLabel,
-				"aria-pressed": String(!!this.state.toolbarCollapsed),
+		this.readerResources = resources;
+		renderReaderToolbar({
+			container: this.toolbarEl,
+			state: this.state,
+			surahs,
+			resources,
+			nav,
+			currentAyah: this.currentAyah(),
+			vaultFontFamilies: this.plugin.fonts.vaultFamilies(),
+			configuredFont: this.plugin.settings.fontByScript[this.state.script],
+			canPopOut: this.containerEl.ownerDocument === document,
+				actions: {
+					showReading: () => void this.switchMode("reading", nav),
+				navigateTo: (surah, ayah) => this.navigateTo(surah, ayah),
+				selectSurah: (surah) => this.goSurah(surah),
+				selectScript: (script) => {
+					this.state.script = script;
+					this.persistState();
+					void this.render();
+				},
+				selectFont: (family) => {
+					this.plugin.settings.fontByScript[this.state.script] = family;
+					void this.plugin.persist();
+					void this.renderBody();
+				},
+				selectTranslation: (id) => this.selectEdition("translationId", id, true),
+				selectTafsir: (id) => this.selectEdition("tafsirId", id),
+				selectComparisons: (ids) => {
+					this.state.compareIds = ids;
+					this.persistState();
+					void this.renderBody();
+				},
+				changeFontSize: (delta) => this.setFont(this.state.fontSize + delta),
+				popOut: () => this.plugin.app.workspace.moveLeafToPopout(this.leaf),
+					setOptionsOpen: (open) => {
+						this.state.toolbarOptionsOpen = open;
+						this.persistState();
+						this.buildToolbar(surahs, resources, nav);
+				},
+				mountAudio: (parent) => this.audioControls.mount(parent),
 			},
 		});
-		collapseBtn.onclick = () => {
-			this.state.toolbarCollapsed = !this.state.toolbarCollapsed;
-			this.persistState();
-			this.buildToolbar(surahs, resources, nav);
-		};
+	}
+
+	private selectEdition(key: "translationId" | "tafsirId", id: string, rebuildToolbar = false): void {
+		this.state[key] = id;
+		this.persistState();
+		if (rebuildToolbar) void this.render();
+		else void this.renderBody();
 	}
 
 	private goSurah(n: number): void {
@@ -325,11 +323,14 @@ export class QuranReaderView extends ItemView implements VerseView {
 	}
 
 	private setFont(px: number): void {
-		this.state.fontSize = Math.max(MIN_FONT, Math.min(MAX_FONT, px));
-		this.bodyEl
-			.querySelectorAll<HTMLElement>(".falah-reader-arabic")
-			.forEach((el) => (el.style.fontSize = `${this.state.fontSize}px`));
+		this.state.fontSize = Math.max(MIN_READER_FONT, Math.min(MAX_READER_FONT, px));
+		this.applyStudyFontSize();
 		this.persistState();
+	}
+
+	private applyStudyFontSize(): void {
+		this.contentEl.style.setProperty("--falah-reader-arabic-font-size", `${this.state.fontSize}px`);
+		this.contentEl.style.setProperty("--falah-mushaf-scale", String(this.state.fontSize / DEFAULT_READER_FONT));
 	}
 
 	private async renderBody(): Promise<void> {
@@ -356,18 +357,65 @@ export class QuranReaderView extends ItemView implements VerseView {
 			return;
 		}
 		this.currentReading = reading;
+		const resources = this.state.compareIds.length
+			? await this.plugin.quranData.listResources()
+			: [];
+		const enhancements = await loadReaderEnhancements(
+			reading,
+			resources,
+			this.state.compareIds,
+			this.plugin.settings.wordAnalysisEnabled && this.plugin.settings.wordResourceId ? {
+				resourceId: this.plugin.settings.wordResourceId,
+				showTranslation: this.plugin.settings.wordShowTranslation,
+				showTransliteration: this.plugin.settings.wordShowTransliteration,
+			} : undefined,
+			{ quran: this.plugin.quranData, words: this.plugin.wordData },
+		);
+		this.wordRows = enhancements.wordRows;
+		this.wordResourceMissing = enhancements.wordResourceMissing;
+			this.comparisonRows = enhancements.comparisonRows;
+			this.comparisonFailures = enhancements.comparisonFailures;
 
 		// Build detached, append once (avoid per-ayah reflow).
 		const wrap = createDiv({ cls: "falah-reader-content" });
 		const head = wrap.createDiv({ cls: "falah-reader-head" });
-		head.createDiv({ cls: "falah-reader-title", text: reading.surah.nameEnglish });
-		head.createDiv({
-			cls: "falah-reader-subtitle",
-			text: t().readerSurahSubtitle(reading.surah.nameArabic, reading.surah.ayahCount),
-			attr: { dir: "rtl" },
-		});
-		if (reading.showBismillah) {
-			wrap.createDiv({ cls: "falah-reader-bismillah", text: BISMILLAH, attr: { dir: "rtl" } });
+		const selectedTranslation = this.state.translationId
+			? this.readerResources.find((resource) =>
+				resource.type === "translation" && resource.id === this.state.translationId
+			)
+			: undefined;
+			head.createDiv({
+				cls: "falah-reader-surah-arabic falah-surah-name-glyph",
+			text: surahNameFontLigature(reading.surah.number),
+			attr: { dir: "ltr", role: "img", "aria-label": reading.surah.nameArabic },
+			});
+			head.createDiv({ cls: "falah-reader-title", text: readerSurahName(reading.surah, selectedTranslation) });
+			head.createDiv({ cls: "falah-reader-subtitle", text: t().readerAyahCount(reading.surah.ayahCount) });
+			if (this.comparisonFailures.length) {
+				head.createDiv({
+					cls: "falah-reader-compare-warning",
+					text: t().readerCompareLoadFailed(this.comparisonFailures.map((failure) => failure.name).join(", ")),
+				});
+			}
+			if (reading.showBismillah) {
+				const bismillah = wrap.createDiv({ cls: "falah-reader-bismillah" });
+				bismillah.createDiv({
+					cls: "falah-reader-bismillah-glyph",
+					text: BISMILLAH_LIGATURE,
+					attr: { dir: "rtl", lang: "ar", role: "img", "aria-label": BISMILLAH },
+				});
+				if (reading.bismillahTranslation) {
+					bismillah.createDiv({
+						cls: "falah-reader-bismillah-translation",
+						text: reading.bismillahTranslation,
+					});
+				}
+			}
+		if (this.wordResourceMissing) {
+			const warning = wrap.createDiv({ cls: "falah-warning" });
+			warning.createSpan({ text: t().readerWordDataMissing });
+			const openLibrary = warning.createEl("button", { text: t().readerOpenLibrary });
+			openLibrary.onclick = () => this.plugin.openLibrarySettings();
 		}
 		for (const a of reading.ayahs) wrap.appendChild(this.buildAyahRow(a, reading));
 
@@ -375,8 +423,281 @@ export class QuranReaderView extends ItemView implements VerseView {
 		body.appendChild(wrap);
 
 		if (this.state.ayah !== undefined) {
-			const target = body.querySelector<HTMLElement>(`.falah-reader-ayah[data-ayah="${this.state.ayah}"]`);
-			target?.scrollIntoView({ block: "center" });
+			const selectedAyah = this.state.ayah;
+			body.ownerDocument.defaultView?.requestAnimationFrame(() => {
+				const target = body.querySelector<HTMLElement>(`.falah-reader-ayah[data-ayah="${selectedAyah}"]`);
+				// Rows can be much taller than the viewport when tafsir/comparisons are
+				// enabled. Center the Arabic line itself so the selected words never land
+				// above the scrollport where they appear to be missing.
+				const anchor = target?.querySelector<HTMLElement>(".falah-reader-arabic") ?? target;
+				if (!anchor) return;
+				const bodyRect = body.getBoundingClientRect();
+				const anchorRect = anchor.getBoundingClientRect();
+				const anchorTop = anchorRect.top - bodyRect.top + body.scrollTop;
+				body.scrollTop = Math.max(0, anchorTop - (body.clientHeight - anchorRect.height) / 2);
+			});
+		}
+		this.scheduleProgressCapture();
+	}
+
+	private async switchMode(mode: "reading" | "study", nav = this.readerNav): Promise<void> {
+		if (this.state.mode === mode) return;
+		if (mode === "reading" && nav) this.state.page = pageOf(nav, this.state.surah, this.currentAyah())?.n ?? 1;
+		this.state.mode = mode;
+		this.persistState();
+		await this.render();
+	}
+
+	private readingActions(nav: QuranNav): MushafViewActions {
+		const inspectorOptions = {
+			glass: this.plugin.settings.wordInspectorGlass,
+			draggable: this.plugin.settings.wordInspectorDraggable,
+			showDictionary: this.plugin.settings.wordInspectorShowDictionary,
+			showGrammar: this.plugin.settings.wordInspectorShowGrammar,
+		};
+		const goLocation = (surah: number, ayah = 1) => {
+			if (surah < 1 || surah > 114) return;
+			this.state.surah = surah;
+			this.state.ayah = ayah;
+			this.state.page = pageOf(nav, surah, ayah)?.n ?? 1;
+			this.persistState();
+			void this.renderReadingMode(nav);
+		};
+		const goPage = (page: number) => {
+			const next = Math.max(1, Math.min(QCF_PAGE_COUNT, page));
+			const location = nav.pages[next - 1];
+			this.state.page = next;
+			if (location) {
+				this.state.surah = location.surah;
+				this.state.ayah = location.ayah;
+			}
+			this.persistState();
+			void this.renderReadingMode(nav);
+		};
+		return {
+			navigateTo: goLocation,
+			selectSurah: (surah) => goLocation(surah),
+			previousPage: () => goPage((this.state.page ?? 1) - 1),
+			nextPage: () => goPage((this.state.page ?? 1) + 1),
+			selectPage: goPage,
+				selectVerse: (surah, ayah) => {
+				this.state.surah = surah;
+				this.state.ayah = ayah;
+				this.persistState();
+					this.highlightReadingVerse(`${surah}:${ayah}`, nav);
+				},
+				openVerseActions: (surah, ayah, event) => {
+					void this.openReadingVerseMenu(surah, ayah, event, nav);
+				},
+			studyVerse: (surah, ayah) => {
+				this.state.surah = surah;
+				this.state.ayah = ayah;
+				void this.switchMode("study", nav);
+			},
+			inspectWord: (word, anchor) => {
+				if (this.plugin.settings.wordAnalysisEnabled) openWordInspector(this.app, word, anchor, inspectorOptions);
+			},
+			showStudy: () => void this.switchMode("study", nav),
+			setOptionsOpen: (open) => {
+				this.state.toolbarOptionsOpen = open;
+				this.persistState();
+				void this.renderReadingMode(nav);
+			},
+			changeFontSize: (delta) => {
+				this.setFont(this.state.fontSize + delta);
+				void this.renderReadingMode(nav);
+			},
+			selectTextFont: (family) => {
+				this.state.readingTextFont = !!family;
+				if (family) this.plugin.settings.fontByScript.uthmani = family;
+				this.persistState();
+				void this.plugin.persist();
+				void this.renderReadingMode(nav);
+			},
+			mountAudio: (parent) => this.audioControls.mount(parent),
+			};
+		}
+
+		private async openReadingVerseMenu(
+			surah: number,
+			ayah: number,
+			event: MouseEvent,
+			nav: QuranNav,
+		): Promise<void> {
+			this.state.surah = surah;
+			this.state.ayah = ayah;
+			this.persistState();
+			this.highlightReadingVerse(`${surah}:${ayah}`, nav);
+
+			try {
+				const content = await this.plugin.quranData.getContent(
+					{ kind: "quran", surah, ayah },
+					{
+						script: this.state.script,
+						translationId: this.state.translationId || undefined,
+					},
+				);
+				if (this.state.mode !== "reading") return;
+				await this.openVerseMenu({
+					surah,
+					ayah,
+					ayahKey: `${surah}:${ayah}`,
+					arabic: content.arabic,
+					translation: content.translation,
+					plugin: this.plugin,
+					view: this,
+				}, event);
+			} catch (error) {
+				console.warn(`Falah: could not open actions for ${surah}:${ayah}`, error);
+			}
+		}
+
+		private async renderReadingMode(nav: QuranNav): Promise<void> {
+		const pageNumber = this.state.page ?? pageOf(nav, this.state.surah, this.currentAyah())?.n ?? 1;
+		this.state.page = pageNumber;
+		const actions = this.readingActions(nav);
+		renderMushafToolbar(
+			this.toolbarEl,
+			pageNumber,
+			this.state.surah,
+			this.currentAyah(),
+			this.readerSurahs,
+			this.readerResources,
+			this.state.translationId,
+			nav,
+			{
+				optionsOpen: !!this.state.toolbarOptionsOpen,
+				fontSize: this.state.fontSize,
+				useTextFont: !!this.state.readingTextFont,
+				vaultFontFamilies: this.plugin.fonts.vaultFamilies(),
+				configuredFont: this.plugin.settings.fontByScript.uthmani,
+			},
+			actions,
+		);
+		this.bodyEl.empty();
+		this.bodyEl.scrollTop = 0;
+		const loading = this.bodyEl.createDiv({ cls: "falah-mushaf-loading" });
+		loading.createDiv({ cls: "falah-mushaf-loading-mark", text: "۞" });
+		loading.createDiv({ text: t().readerPreparingMushaf });
+		try {
+			const page = await this.plugin.qcf.getPage(pageNumber);
+			await this.plugin.qcf.ensurePageFonts(page, this.bodyEl.ownerDocument);
+			const ayahKeys = page.lines.flatMap((line) => line.words.flatMap((word) => word.verse_key ? [word.verse_key] : []));
+			const wordResult = await loadWordRowsForAyahKeys(
+				ayahKeys,
+					this.plugin.settings.wordAnalysisEnabled && this.plugin.settings.wordResourceId ? {
+					resourceId: this.plugin.settings.wordResourceId,
+					showTranslation: this.plugin.settings.wordShowTranslation,
+					showTransliteration: this.plugin.settings.wordShowTransliteration,
+				} : undefined,
+				this.plugin.wordData,
+			);
+			if (this.state.mode !== "reading" || this.state.page !== pageNumber) return;
+				renderMushafPage(
+				this.bodyEl,
+				page,
+				`${this.state.surah}:${this.currentAyah()}`,
+				wordResult.rows,
+					actions,
+					this.state.readingTextFont
+						? { textFont: this.plugin.settings.fontByScript.uthmani }
+						: undefined,
+				);
+			this.bodyEl.scrollTop = 0;
+			this.syncReadingRecitation(this.plugin.recitation.snapshot());
+			this.plugin.qcf.prefetch(pageNumber);
+			this.scheduleProgressCapture();
+		} catch (error) {
+			this.bodyEl.empty();
+			const failure = this.bodyEl.createDiv({ cls: "falah-mushaf-error" });
+			failure.createEl("h3", { text: t().readerMushafErrorTitle });
+			failure.createEl("p", { text: errMsg(error) });
+			const retry = failure.createEl("button", { text: t().readerRetry });
+			retry.onclick = () => void this.renderReadingMode(nav);
+			const study = failure.createEl("button", { text: t().readerReturnToStudy });
+			study.onclick = () => void this.switchMode("study", nav);
+		}
+	}
+
+	private highlightReadingVerse(verseKey: string, nav: QuranNav): void {
+		this.bodyEl.querySelectorAll<HTMLElement>(".falah-mushaf-word[data-verse-key]").forEach((word) => {
+			word.toggleClass("is-selected", word.dataset.verseKey === verseKey);
+		});
+		const footer = this.bodyEl.querySelector<HTMLElement>(".falah-mushaf-page-footer");
+		if (!footer) return;
+		const [surah, ayah] = verseKey.split(":").map(Number);
+		footer.empty();
+		footer.createSpan({ text: "مُصْحَفُ الْمَدِينَةِ" });
+		const study = footer.createEl("button", { cls: "falah-mushaf-study-verse", text: t().readerStudyAyah(verseKey) });
+		study.onclick = () => {
+			this.state.surah = surah;
+			this.state.ayah = ayah;
+			void this.switchMode("study", nav);
+		};
+	}
+
+	private syncReadingRecitation(state: RecitationState): void {
+		if (this.state.mode !== "reading" || !this.readerNav) return;
+		const current = state.current;
+		if (!current) {
+			this.bodyEl.querySelectorAll(".falah-mushaf-word.is-reciting").forEach((word) => word.removeClass("is-reciting"));
+			this.followedRecitationKey = undefined;
+			return;
+		}
+
+		const location = pageOf(this.readerNav, current.surah, current.ayah);
+		const currentPage = this.state.page ?? 1;
+		const refChanged = this.state.surah !== current.surah || this.currentAyah() !== current.ayah;
+		this.state.surah = current.surah;
+		this.state.ayah = current.ayah;
+
+		if (location && location.n !== currentPage) {
+			this.state.page = location.n;
+			this.persistState();
+			void this.renderReadingMode(this.readerNav);
+			return;
+		}
+		if (refChanged) this.persistState();
+
+		const verseKey = `${current.surah}:${current.ayah}`;
+		this.highlightReadingVerse(verseKey, this.readerNav);
+		const words = Array.from(
+			this.bodyEl.querySelectorAll<HTMLElement>(".falah-mushaf-word[data-verse-key]"),
+		);
+		for (const word of words) {
+			word.toggleClass("is-reciting", state.playing && word.dataset.verseKey === verseKey);
+		}
+
+		if (!state.playing) {
+			this.followedRecitationKey = undefined;
+			return;
+		}
+		const firstWord = words.find((word) => word.dataset.verseKey === verseKey);
+		if (firstWord && this.followedRecitationKey !== verseKey) {
+			this.followedRecitationKey = verseKey;
+			firstWord.scrollIntoView({ block: "center", behavior: "smooth" });
+		}
+	}
+
+	private handleReadingKey(event: KeyboardEvent): void {
+		if (event.key === "Escape" && this.state.mode !== "reading" && this.state.toolbarOptionsOpen && this.readerNav) {
+			event.preventDefault();
+			this.state.toolbarOptionsOpen = false;
+			this.persistState();
+			void this.render();
+			return;
+		}
+		if (this.state.mode !== "reading" || !this.readerNav) return;
+		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLButtonElement) return;
+		if (event.key === "Escape") {
+			event.preventDefault();
+			void this.switchMode("study", this.readerNav);
+		} else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+			event.preventDefault();
+			this.readingActions(this.readerNav).previousPage();
+		} else if (event.key === "ArrowRight" || event.key === "PageDown") {
+			event.preventDefault();
+			this.readingActions(this.readerNav).nextPage();
 		}
 	}
 
@@ -421,49 +742,7 @@ export class QuranReaderView extends ItemView implements VerseView {
 	}
 
 	private async openVerseMenu(ctx: VerseContext, evt: MouseEvent): Promise<void> {
-		const menu = new Menu();
-		let any = false;
-		for (const action of this.plugin.verseActionList()) {
-			let items: VerseMenuItem[];
-			try {
-				items = await action.items(ctx);
-			} catch {
-				items = [];
-			}
-			for (const item of items) {
-				any = true;
-				this.addVerseMenuItem(menu, item);
-			}
-		}
-		if (!any) menu.addItem((mi) => mi.setTitle(t().readerNoVerseActions).setDisabled(true));
-		menu.showAtMouseEvent(evt);
-	}
-
-	/** Add one VerseMenuItem to a Menu, recursing into `submenu` via Obsidian's
-	 *  runtime `MenuItem.setSubmenu()`. That method isn't in the public typings but
-	 *  ships in current Obsidian (used by core file menus); if it's ever absent the
-	 *  submenu's children are flattened into the parent menu so nothing is lost.
-	 *  ponytail: undocumented-but-stable API, guarded. */
-	private addVerseMenuItem(menu: Menu, item: VerseMenuItem): void {
-		let flattenInto: Menu | undefined;
-		menu.addItem((mi) => {
-			mi.setTitle(item.title);
-			if (item.icon) mi.setIcon(item.icon);
-			if (item.section) mi.setSection(item.section);
-			if (item.checked !== undefined) mi.setChecked(item.checked);
-			const setSubmenu = (mi as unknown as { setSubmenu?: () => Menu }).setSubmenu;
-			if (item.submenu?.length && typeof setSubmenu === "function") {
-				const sub = setSubmenu.call(mi);
-				for (const child of item.submenu) this.addVerseMenuItem(sub, child);
-			} else if (item.submenu?.length) {
-				flattenInto = menu; // no submenu API — add children flat after this item
-			} else if (item.onClick) {
-				mi.onClick(() => void item.onClick!());
-			}
-		});
-		if (flattenInto && item.submenu) {
-			for (const child of item.submenu) this.addVerseMenuItem(flattenInto, child);
-		}
+		await openVerseActionMenu(this.plugin.verseActionList(), ctx, evt, t().readerNoVerseActions);
 	}
 
 	private rerenderAyahRow(ayahKey: string): void {
@@ -481,13 +760,16 @@ export class QuranReaderView extends ItemView implements VerseView {
 		row.dataset.ayah = String(a.ayah);
 		row.dataset.ayahKey = a.ayahKey;
 		if (this.state.ayah === a.ayah) row.addClass("falah-reader-ayah-active");
+		if (this.plugin.progress.furthestForSurah(this.state.surah)?.ayah === a.ayah) {
+			row.addClass("falah-reader-ayah-furthest");
+		}
 
 		const ctx = this.verseContext(a);
 		const menuBtn = row.createEl("button", {
-			cls: "falah-reader-verse-menu",
-			text: "⋯",
+			cls: "falah-reader-verse-menu falah-icon-button",
 			attr: { "aria-label": t().readerVerseActions },
 		});
+		setIcon(menuBtn, "ellipsis");
 		menuBtn.onclick = (e) => {
 			e.preventDefault();
 			void this.openVerseMenu(ctx, e);
@@ -498,13 +780,22 @@ export class QuranReaderView extends ItemView implements VerseView {
 			void this.openVerseMenu(ctx, e);
 		});
 
-		const ar = row.createDiv({ cls: "falah-reader-arabic", attr: { dir: "rtl" } });
-		ar.style.fontSize = `${this.state.fontSize}px`;
+		const ar = row.createDiv({ cls: "falah-reader-arabic", attr: { dir: "rtl", lang: "ar" } });
 		ar.style.fontFamily = this.plugin.arabicFontStack(this.state.script);
-		ar.createSpan({ text: a.arabic });
+			const hasInteractiveWords = renderInteractiveArabic(ar, this.wordRows.get(a.ayahKey), (word, anchor) => {
+				if (!this.plugin.settings.wordAnalysisEnabled) return;
+				openWordInspector(this.app, word, anchor, {
+					glass: this.plugin.settings.wordInspectorGlass,
+					draggable: this.plugin.settings.wordInspectorDraggable,
+					showDictionary: this.plugin.settings.wordInspectorShowDictionary,
+					showGrammar: this.plugin.settings.wordInspectorShowGrammar,
+				});
+			});
+		if (!hasInteractiveWords) ar.createSpan({ text: a.arabic });
 		ar.createSpan({ cls: "falah-reader-ayah-num", text: ` ﴿${a.ayah}﴾` });
 
 		if (a.translation) row.createDiv({ cls: "falah-reader-translation", text: a.translation });
+		renderComparisonGrid(row, this.comparisonRows.get(a.ayahKey));
 
 		this.renderTafsirBlocks(row, a, reading);
 
@@ -525,7 +816,13 @@ export class QuranReaderView extends ItemView implements VerseView {
 	private renderTafsirBlocks(row: HTMLElement, a: ReadingAyah, reading: SurahReading): void {
 		const globalId = this.state.tafsirId;
 		if (globalId && a.tafsir) {
-			this.renderTafsirBlock(row, t().readerTafsirBlockTitle(reading.tafsirName ?? globalId), a.tafsir, false);
+			renderTafsirBlock(
+				row,
+				t().readerTafsirBlockTitle(reading.tafsirName ?? globalId),
+				a.tafsir,
+				false,
+				t().readerRemoveTafsirAriaLabel,
+			);
 		}
 		for (const id of this.perVerseTafsir.get(a.ayahKey) ?? []) {
 			if (id === globalId) continue; // already shown as the global block
@@ -533,38 +830,14 @@ export class QuranReaderView extends ItemView implements VerseView {
 			if (cached === undefined) continue; // fetch in flight
 			const title = t().readerTafsirThisVerse(cached?.name ?? id);
 			const text = cached ? cached.text : t().readerTafsirUnavailable;
-			this.renderTafsirBlock(row, title, text, true, () => void this.toggleVerseTafsir(a.ayahKey, id));
+			renderTafsirBlock(row, title, text, true, t().readerRemoveTafsirAriaLabel, () => void this.toggleVerseTafsir(a.ayahKey, id));
 		}
-	}
-
-	private renderTafsirBlock(
-		row: HTMLElement,
-		title: string,
-		text: string,
-		removable: boolean,
-		onRemove?: () => void
-	): void {
-		const det = row.createEl("details", { cls: "falah-reader-tafsir" });
-		det.open = removable; // per-verse opens on toggle; global stays collapsed
-		const summary = det.createEl("summary");
-		summary.createSpan({ text: title });
-		if (removable && onRemove) {
-			const x = summary.createEl("button", {
-				cls: "falah-reader-tafsir-remove",
-				text: "✕",
-				attr: { "aria-label": t().readerRemoveTafsirAriaLabel },
-			});
-			x.onclick = (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				onRemove();
-			};
-		}
-		det.createDiv({ text, attr: { dir: ARABIC_RE.test(text) ? "rtl" : "ltr" } });
 	}
 
 	async onClose(): Promise<void> {
-		void this.plugin.bookmarks.flush();
+		closeWordInspector(this.contentEl.ownerDocument);
+		this.audioControls.disconnect();
+		await Promise.all([this.plugin.bookmarks.flush(), this.plugin.progress.flush()]);
 		this.contentEl.empty();
 	}
 }

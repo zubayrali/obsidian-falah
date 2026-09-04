@@ -9,6 +9,11 @@ import {
 
 export const DEFAULT_BOOKMARK_GROUP = "Bookmarks";
 
+export interface BookmarkTimers {
+	schedule(callback: () => void, delayMs: number): number;
+	cancel(timer: number): void;
+}
+
 export class BookmarkStoreService {
 	private store: BookmarkStore = emptyStore();
 	private listeners: Array<() => void> = [];
@@ -19,10 +24,11 @@ export class BookmarkStoreService {
 		private path: string,
 		private now: () => number = () => Date.now(),
 		private recentDebounceMs = 3000,
+		private timers: BookmarkTimers,
 	) {}
 
 	private recentCap = 5;
-	private recentTimer: ReturnType<typeof setTimeout> | null = null;
+	private recentTimer: number | null = null;
 	private recentDirty = false;
 
 	/** Configures which group name new bookmarks (and the undeletable/move
@@ -172,19 +178,19 @@ export class BookmarkStoreService {
 		if (recent.length > this.recentCap) recent.length = this.recentCap;
 		this.recentDirty = true;
 		for (const cb of this.listeners) cb();          // live view update
-		if (this.recentTimer) clearTimeout(this.recentTimer);
-		this.recentTimer = setTimeout(() => { this.recentTimer = null; void this.flush(); }, this.recentDebounceMs);
+		if (this.recentTimer) this.timers.cancel(this.recentTimer);
+		this.recentTimer = this.timers.schedule(() => { this.recentTimer = null; void this.flush(); }, this.recentDebounceMs);
 	}
 
 	async clearRecent(): Promise<void> {
 		this.store.recent = [];
 		this.recentDirty = false;
-		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
+		if (this.recentTimer) { this.timers.cancel(this.recentTimer); this.recentTimer = null; }
 		await this.persist();
 	}
 
 	async flush(): Promise<void> {
-		if (this.recentTimer) { clearTimeout(this.recentTimer); this.recentTimer = null; }
+		if (this.recentTimer) { this.timers.cancel(this.recentTimer); this.recentTimer = null; }
 		if (this.recentDirty) { this.recentDirty = false; await this.persist(); }
 	}
 

@@ -34,6 +34,46 @@ export interface WordSegment {
 	text: string;
 	translation?: string;
 	transliteration?: string;
+	morphology?: WordMorphology;
+	dictionary?: WordDictionaryEntry;
+}
+
+export type MorphologySegmentType = "prefix" | "stem" | "suffix" | "unknown";
+
+export interface MorphologySegment {
+	index: number;
+	type: MorphologySegmentType;
+	form: string;
+	transliteration: string;
+	partOfSpeech: string;
+	partOfSpeechCode: string;
+	features: string[];
+	root?: string;
+	lemma?: string;
+}
+
+/** Source-neutral analysis keyed to one Quran word location (surah:ayah:word). */
+export interface WordMorphology {
+	location: string;
+	root?: string;
+	lemma?: string;
+	partOfSpeech?: string;
+	case?: string;
+	gender?: string;
+	number?: string;
+	person?: string;
+	voice?: string;
+	mood?: string;
+	aspect?: string;
+	segments: MorphologySegment[];
+}
+
+/** Lexical information is deliberately separate from contextual translation. */
+export interface WordDictionaryEntry {
+	headword?: string;
+	root?: string;
+	senses: string[];
+	source?: string;
 }
 
 export interface TranslationVerse {
@@ -92,6 +132,8 @@ export interface ResourceDescriptor {
 	license?: string; // license name/short text as reported by the source
 	cardinality?: Cardinality; // how content keys to text; distinct from `type`
 	provenance?: ResourceProvenance; // NOT `source` (that's DownloadSourceId)
+	/** Surahs currently present on disk. Omitted for bundled and catalog-only resources. */
+	installedSurahs?: number[];
 	meta?: Record<string, unknown>; // open bag: license text, direction, count, ...
 }
 

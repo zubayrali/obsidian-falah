@@ -136,6 +136,19 @@ export function normalizeAlQuranAyahs(json: unknown, surah: number): Translation
 	});
 }
 
+export function normalizeAlQuranFull(json: unknown): Map<number, TranslationVerse[]> {
+	const body = json as { code?: unknown; data?: { surahs?: unknown } };
+	if (body?.code !== 200 || !Array.isArray(body.data?.surahs)) {
+		throw new SchemaError("AlQuran.cloud Quran response: unexpected shape");
+	}
+	const bySurah = new Map<number, TranslationVerse[]>();
+	for (const raw of body.data.surahs as Array<{ number?: unknown; ayahs?: unknown }>) {
+		if (typeof raw?.number !== "number") throw new SchemaError("AlQuran.cloud Quran response: malformed surah");
+		bySurah.set(raw.number, normalizeAlQuranAyahs({ code: 200, data: raw }, raw.number));
+	}
+	return bySurah;
+}
+
 interface QulResourceMeta {
 	id?: unknown;
 	name?: unknown;
@@ -241,16 +254,20 @@ export function normalizeQulTafsirRange(json: unknown): TafsirVerse[] {
 	if (!Array.isArray(body?.tafsirs)) {
 		throw new SchemaError('QUL tafsir by_range: missing "tafsirs" array');
 	}
-	return (body.tafsirs as Array<{ verses?: unknown; text?: unknown }>).map((t, i) => {
+	return (body.tafsirs as Array<{ verses?: unknown; verse_key?: unknown; text?: unknown }>).map((t, i) => {
 		if (typeof t !== "object" || t === null) {
 			throw new SchemaError(
 				`QUL tafsir by_range: expected object at index ${i}, got ${t === null ? "null" : typeof t}`
 			);
 		}
-		if (typeof t.text !== "string" || !Array.isArray(t.verses)) {
+		if (typeof t.text !== "string") {
 			throw new SchemaError(`QUL tafsir by_range: malformed entry at index ${i}`);
 		}
-		const verses = (t.verses as unknown[]).filter((v): v is string => typeof v === "string");
+		const verses = typeof t.verse_key === "string"
+			? [t.verse_key]
+			: Array.isArray(t.verses)
+				? (t.verses as unknown[]).filter((v): v is string => typeof v === "string")
+				: [];
 		if (verses.length === 0) {
 			throw new SchemaError(`QUL tafsir by_range: entry ${i} has no valid verse keys`);
 		}
@@ -266,7 +283,24 @@ interface ImportPackJson {
 	name?: unknown;
 	language?: unknown;
 	license?: unknown;
+	chapterNames?: unknown;
 	verses?: unknown;
+}
+
+function normalizeChapterNames(value: unknown): Record<string, string> | undefined {
+	if (value === undefined) return undefined;
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		throw new SchemaError("import pack: chapterNames must be an object keyed by surah number");
+	}
+	const names: Record<string, string> = {};
+	for (const [key, name] of Object.entries(value)) {
+		const surah = Number(key);
+		if (!Number.isInteger(surah) || surah < 1 || surah > 114 || typeof name !== "string" || !name.trim()) {
+			throw new SchemaError(`import pack: invalid chapter name for surah "${key}"`);
+		}
+		names[String(surah)] = name.trim();
+	}
+	return names;
 }
 
 export function normalizePack(
@@ -303,6 +337,7 @@ export function normalizePack(
 		throw new SchemaError(`import pack: unsafe id "${body.id}" (path separators, "..", leading ".", ":" and control chars are not allowed)`);
 	}
 	const bySurah = new Map<number, TranslationVerse[]>();
+	const chapterNames = normalizeChapterNames(body.chapterNames);
 	body.verses.forEach((v, i) => {
 		if (typeof v !== "object" || v === null) {
 			throw new SchemaError(
@@ -326,6 +361,7 @@ export function normalizePack(
 			language: body.language,
 			tier: "user-import",
 			license: typeof body.license === "string" ? body.license : undefined,
+			meta: chapterNames ? { chapterNames } : undefined,
 		},
 		bySurah,
 	};

@@ -1,7 +1,6 @@
 // Source adapters: each knows one dataset's URLs + shapes and normalizes to
-// HadithCollection. Network methods are NOT unit-tested (policy); the pure
-// catalog constants are. fetchCollection is cancellable via AbortSignal where
-// the underlying transport supports it (checked before each request).
+// HadithCollection. Network contracts are unit-tested through injected
+// transports. fetchCollection is cancellable between transport requests.
 
 import { DataError, NetworkError } from "../schema";
 import type { FetchJson } from "../download";
@@ -26,10 +25,16 @@ export interface HadithSource {
 	): Promise<HadithCollection>;
 }
 
-async function fetchJsonOrThrow(fetchJson: FetchJson, url: string): Promise<unknown> {
+export type AuthenticatedFetchJson = (url: string, apiKey: string) => Promise<unknown>;
+
+async function fetchJsonOrThrow(fetchJson: FetchJson, url: string, signal?: AbortSignal): Promise<unknown> {
+	signal?.throwIfAborted();
 	try {
-		return await fetchJson(url);
+		const result = await fetchJson(url);
+		signal?.throwIfAborted();
+		return result;
 	} catch (err) {
+		if (signal?.aborted) throw err;
 		if (err instanceof DataError) throw err;
 		throw new NetworkError(`Request failed: ${url}: ${err instanceof Error ? err.message : String(err)}`);
 	}
@@ -42,24 +47,28 @@ export class Fawazahmed0HadithSource implements HadithSource {
 	async listCatalog(fetchJson: FetchJson): Promise<HadithCatalogEntry[]> {
 		return parseFawazHadithEditions(await fetchJsonOrThrow(fetchJson, `${FAWAZ}/editions.json`));
 	}
-	async fetchCollection(collection: string, language: string, fetchJson: FetchJson): Promise<HadithCollection> {
-		const araJson = await fetchJsonOrThrow(fetchJson, `${FAWAZ}/editions/ara-${collection}.min.json`);
+	async fetchCollection(collection: string, language: string, fetchJson: FetchJson, signal?: AbortSignal): Promise<HadithCollection> {
+		const araJson = await fetchJsonOrThrow(fetchJson, `${FAWAZ}/editions/ara-${collection}.min.json`, signal);
 		let transJson: unknown = null;
 		if (language !== "ara") {
-			transJson = await fetchJsonOrThrow(fetchJson, `${FAWAZ}/editions/${language}-${collection}.min.json`);
+			transJson = await fetchJsonOrThrow(fetchJson, `${FAWAZ}/editions/${language}-${collection}.min.json`, signal);
 		}
 		return normalizeFawaz(araJson, transJson, { source: this.id, collection, language });
 	}
 }
 
 const AHMEDBASET_RAW = "https://cdn.jsdelivr.net/gh/AhmedBaset/hadith-json@main/db/by_book";
-// group → path segment on the CDN
-const AHMEDBASET_PATHS: Record<string, "the_9_books" | "forties" | "other_books"> = {
-	bukhari: "the_9_books", muslim: "the_9_books", nasai: "the_9_books", abudawud: "the_9_books",
-	tirmidhi: "the_9_books", ibnmajah: "the_9_books", malik: "the_9_books", ahmed: "the_9_books", darimi: "the_9_books",
-	nawawi: "forties", qudsi: "forties", shahwaliullah: "forties",
-	riyad_assalihin: "other_books", adab_almufrad: "other_books", bulugh_almaram: "other_books",
-	shamail_muhammadiyah: "other_books", mishkat_almasabih: "other_books",
+// Exact path in the upstream repository. Several public collection slugs do
+// not match their filenames (notably the forties and Al-Adab Al-Mufrad).
+const AHMEDBASET_PATHS: Record<string, string> = {
+	bukhari: "the_9_books/bukhari.json", muslim: "the_9_books/muslim.json", nasai: "the_9_books/nasai.json",
+	abudawud: "the_9_books/abudawud.json", tirmidhi: "the_9_books/tirmidhi.json",
+	ibnmajah: "the_9_books/ibnmajah.json", malik: "the_9_books/malik.json", ahmed: "the_9_books/ahmed.json",
+	darimi: "the_9_books/darimi.json", nawawi: "forties/nawawi40.json", qudsi: "forties/qudsi40.json",
+	shahwaliullah: "forties/shahwaliullah40.json", riyad_assalihin: "other_books/riyad_assalihin.json",
+	adab_almufrad: "other_books/aladab_almufrad.json", bulugh_almaram: "other_books/bulugh_almaram.json",
+	shamail_muhammadiyah: "other_books/shamail_muhammadiyah.json",
+	mishkat_almasabih: "other_books/mishkat_almasabih.json",
 };
 export const AHMEDBASET_BOOKS: HadithCatalogEntry[] = [
 	["bukhari", "Sahih al-Bukhari"], ["muslim", "Sahih Muslim"], ["nasai", "Sunan an-Nasa'i"],
@@ -76,9 +85,9 @@ export class AhmedBasetHadithSource implements HadithSource {
 	async listCatalog(): Promise<HadithCatalogEntry[]> {
 		return AHMEDBASET_BOOKS;
 	}
-	async fetchCollection(collection: string, language: string, fetchJson: FetchJson): Promise<HadithCollection> {
-		const group = AHMEDBASET_PATHS[collection] ?? "other_books";
-		const json = await fetchJsonOrThrow(fetchJson, `${AHMEDBASET_RAW}/${group}/${collection}.json`);
+	async fetchCollection(collection: string, language: string, fetchJson: FetchJson, signal?: AbortSignal): Promise<HadithCollection> {
+		const path = AHMEDBASET_PATHS[collection] ?? `other_books/${collection}.json`;
+		const json = await fetchJsonOrThrow(fetchJson, `${AHMEDBASET_RAW}/${path}`, signal);
 		return normalizeAhmedBaset(json, { collection, language: language || "eng" });
 	}
 }
@@ -88,15 +97,21 @@ const SUNNAH_API = "https://api.sunnah.com/v1";
 export class SunnahComHadithSource implements HadithSource {
 	readonly id = "sunnah";
 	readonly needsApiKey = true;
-	constructor(private apiKey: () => string) {}
+	constructor(
+		private apiKey: () => string,
+		private authenticatedFetch?: AuthenticatedFetchJson,
+	) {}
 	private requireKey(): string {
 		const k = this.apiKey();
 		if (!k) throw new NetworkError("sunnah.com needs an API key — set it in Falah settings (request one at github.com/sunnah-com/api).");
 		return k;
 	}
 	async listCatalog(fetchJson: FetchJson): Promise<HadithCatalogEntry[]> {
-		this.requireKey();
-		const json = (await fetchJsonOrThrow(fetchJson, `${SUNNAH_API}/collections?limit=50`)) as {
+		const key = this.requireKey();
+		const transport = this.authenticatedFetch
+			? (url: string) => this.authenticatedFetch!(url, key)
+			: fetchJson;
+		const json = (await fetchJsonOrThrow(transport, `${SUNNAH_API}/collections?limit=50`)) as {
 			data?: { name?: string; collection?: { lang?: string; title?: string }[] }[];
 		};
 		return (json.data ?? [])
@@ -109,12 +124,15 @@ export class SunnahComHadithSource implements HadithSource {
 			}));
 	}
 	async fetchCollection(collection: string, language: string, fetchJson: FetchJson, signal?: AbortSignal): Promise<HadithCollection> {
-		this.requireKey();
+		const key = this.requireKey();
+		const transport = this.authenticatedFetch
+			? (url: string) => this.authenticatedFetch!(url, key)
+			: fetchJson;
 		const all: unknown[] = [];
 		let name = collection;
 		for (let page = 1; page <= 200; page++) {
 			if (signal?.aborted) break;
-			const json = (await fetchJsonOrThrow(fetchJson, `${SUNNAH_API}/collections/${collection}/hadiths?page=${page}&limit=100`)) as {
+			const json = (await fetchJsonOrThrow(transport, `${SUNNAH_API}/collections/${collection}/hadiths?page=${page}&limit=100`, signal)) as {
 				data?: unknown[]; collection?: { name?: string };
 			};
 			if (json.collection?.name) name = json.collection.name;
@@ -154,10 +172,10 @@ export class OpenHadithCsvSource implements HadithSource {
 	async listCatalog(): Promise<HadithCatalogEntry[]> {
 		return MHASHIM_BOOKS;
 	}
-	async fetchCollection(collection: string, _language: string, fetchJson: FetchJson): Promise<HadithCollection> {
+	async fetchCollection(collection: string, _language: string, fetchJson: FetchJson, signal?: AbortSignal): Promise<HadithCollection> {
 		const path = MHASHIM_PATHS[collection];
 		if (!path) throw new NetworkError(`mhashim6 has no CSV mapping for "${collection}"`);
-		const raw = await fetchJsonOrThrow(fetchJson, `${MHASHIM_RAW}/${path}`);
+		const raw = await fetchJsonOrThrow(fetchJson, `${MHASHIM_RAW}/${path}`, signal);
 		const text = typeof raw === "string" ? raw : String(raw);
 		const name = MHASHIM_BOOKS.find((b) => b.collection === collection)?.name ?? collection;
 		return parseMhashimCsv(text, { collection, name });

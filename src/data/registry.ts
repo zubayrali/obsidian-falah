@@ -23,6 +23,8 @@ export interface InstalledResourceEntry {
 	sourceResourceId?: string;
 	version?: string;
 	license?: string;
+	cardinality?: ResourceDescriptor["cardinality"];
+	meta?: Record<string, unknown>;
 	installedAt: number;
 	surahs: number[];
 }
@@ -120,7 +122,12 @@ export class Registry {
 			source: e.source,
 			sourceResourceId: e.sourceResourceId,
 			version: e.version,
-			license: e.license,
+				license: e.license,
+				...((e.cardinality ?? (e.meta?.wordSource ? "per-word" : undefined))
+					? { cardinality: e.cardinality ?? "per-word" }
+					: {}),
+				installedSurahs: [...e.surahs],
+			...(e.meta ? { meta: e.meta } : {}),
 		}));
 	}
 
@@ -148,9 +155,34 @@ export class Registry {
 			source: desc.source,
 			sourceResourceId: desc.sourceResourceId,
 			version: desc.version,
-			license: desc.license,
+				license: desc.license,
+				cardinality: desc.cardinality ?? existing?.cardinality,
+				meta: desc.meta ?? existing?.meta,
 			installedAt: existing?.installedAt ?? Date.now(),
 			surahs,
+		};
+		await this.writeIndex(index);
+	}
+
+	/** Commit a complete resource descriptor in one index write. Used after a
+	 * replacement download succeeds so the previous version remains usable and
+	 * marked current if the network fails or the user cancels midway through. */
+	async recordResourceInstalled(desc: ResourceDescriptor, surahs: number[]): Promise<void> {
+		const index = await this.readIndex();
+		const existing = index.resources[desc.id];
+		index.resources[desc.id] = {
+			type: desc.type,
+			name: desc.name,
+			language: desc.language,
+			tier: desc.tier,
+			source: desc.source,
+			sourceResourceId: desc.sourceResourceId,
+			version: desc.version,
+			license: desc.license,
+			cardinality: desc.cardinality ?? existing?.cardinality,
+			meta: desc.meta ?? existing?.meta,
+			installedAt: existing?.installedAt ?? Date.now(),
+			surahs: [...new Set(surahs)].sort((a, b) => a - b),
 		};
 		await this.writeIndex(index);
 	}
@@ -162,7 +194,9 @@ export class Registry {
 			name: desc.name,
 			language: desc.language,
 			tier: "user-import",
-			license: desc.license,
+				license: desc.license,
+				cardinality: desc.cardinality,
+				meta: desc.meta,
 			installedAt: Date.now(),
 			surahs: [...surahs].sort((a, b) => a - b),
 		};

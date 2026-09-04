@@ -1,38 +1,20 @@
-// Plugin shell: settings, providers, cache, commands, and registration of the
-// slash suggest, Live Preview decorations, and Reading mode post-processor.
-
-import { Editor, Plugin, PluginSettingTab, Setting, requestUrl } from "obsidian";
+import { Editor, Plugin, requestUrl } from "obsidian";
 import type { WorkspaceLeaf } from "obsidian";
-import {
-	IslamicReference,
-	QuranRef,
-	RenderedText,
-	findReferences,
-	parseRefUri,
-	toCallout,
-	toLabel,
-	toMarkdownLink,
-	toUri,
-} from "./ref";
+import { IslamicReference, QuranRef, RenderedText, parseRefUri, toUri } from "./ref";
 import { AlQuranCloudProvider, HadithCdnProvider, errMsg } from "./providers";
 import { logMessage } from "./log";
 import { t } from "./i18n";
-import { HadithCollectionPickerModal, HonorificModal, QuranSearchModal, SlashSuggest } from "./suggest";
-import { NavigateModal } from "./nav/navigate-modal";
+import { QuranSearchModal, SlashSuggest } from "./suggest";
 import { livePreviewChips } from "./decorations";
 import { falahPostProcessor } from "./postprocess";
 import { ReferenceDetailModal } from "./detail";
-import type { ArabicScript, ReferenceContent, HadithContent, VerseContent } from "./data/schema";
-import type { ResourceDescriptor } from "./data/schema";
+import type { ReferenceContent } from "./data/schema";
 import { DataStore } from "./data/store";
 import type { FileIO } from "./data/store";
-import { categoryForType } from "./data/store";
 import { Registry } from "./data/registry";
-import { CoreLoader, CORE_CLEARQURAN_ID, defaultCoreImportMap } from "./data/core";
-import { AlQuranCloudSource, Fawazahmed0Source, QulSource, downloadResource } from "./data/download";
+import { CoreLoader, defaultCoreImportMap } from "./data/core";
+import { AlQuranCloudSource, Fawazahmed0Source, QulSource } from "./data/download";
 import type { DownloadSource, FetchJson } from "./data/download";
-import { scanImportsFolder } from "./data/imports";
-import { SOURCE_LABELS, TIER_LABELS, distinctLanguages, filterCatalog, languageDisplayName } from "./settings-helpers";
 import { CacheEntry, LiveApiSource, QuranDataSource, RefCache, SourceChain } from "./data/source";
 import type { DownloadSourceId } from "./data/schema";
 import { makeFetchJson, makeFileIO } from "./data/obsidian-io";
@@ -41,96 +23,46 @@ import { InstallIndex } from "./data/content/install-index";
 import { CatalogCache } from "./data/content/catalog-cache";
 import { HadithCoreLoader } from "./data/hadith/core";
 import { HadithResolver } from "./data/hadith/source";
-import {
-	Fawazahmed0HadithSource,
-	AhmedBasetHadithSource,
-	SunnahComHadithSource,
-	OpenHadithCsvSource,
-	type HadithSource,
-} from "./data/hadith/sources";
+import { Fawazahmed0HadithSource, AhmedBasetHadithSource, SunnahComHadithSource, OpenHadithCsvSource, type HadithSource } from "./data/hadith/sources";
 import type { HadithCatalogEntry } from "./data/hadith/schema";
 import { QuranReaderView, VIEW_TYPE_QURAN_READER } from "./reader";
+import { QcfStore } from "./qcf/store";
 import { BookmarksView, VIEW_TYPE_BOOKMARKS } from "./bookmarks/view";
-import { exportMarkdown, importText } from "./bookmarks/markdown";
-import { resolveRow, type AvailabilitySnapshot } from "./bookmarks/resolve";
+import type { AvailabilitySnapshot } from "./bookmarks/resolve";
 import { promptName } from "./bookmarks/prompt";
 import type { Lens } from "./bookmarks/schema";
 import { defaultVerseActions } from "./verse-actions";
 import type { VerseAction } from "./verse-actions";
-import { DEFAULT_FONT_BY_SCRIPT, bundledFontsForScript, dedupeFamilies, fontStackFor } from "./fonts";
-import { FontManager, enumerateSystemFonts } from "./font-loader";
+import { DEFAULT_FONT_BY_SCRIPT, fontStackFor } from "./fonts";
+import { FontManager } from "./font-loader";
 import { BookmarkStoreService } from "./bookmarks/store";
-import type { BookmarkSort } from "./bookmarks/sort";
+import { ReadingProgressService } from "./progress";
+import { LocalWordByWordData } from "./data/word-data";
+import { createDefaultAudioSourceResolver, HtmlAudioBackend, RECITERS, RecitationController } from "./audio/recitation";
+import { createDefaultRecitationOfflineManager, type RecitationOfflineManager } from "./audio/offline";
 import {
 	VerseActionRegistry,
+	ReferenceActionRegistry,
 	SlashItemRegistry,
-	FALAH_REF,
-	FALAH_API_VERSION,
 	FALAH_API_READY_EVENT,
-	isPluginEnabled,
 	type FalahApi,
 	type AyahRowDecorator,
 	type VerseText,
 	type SlashItem,
+	type ReferenceAction,
 } from "./api";
-
-/** The Tadabbur companion — reflection/journaling built on Falah's public API. */
-const TADABBUR_PLUGIN_ID = "falah-tadabbur";
-const TADABBUR_URL = "https://github.com/zubayrali/obsidian-tadabbur";
-
-interface FalahSettings {
-	translationEdition: string;
-	tafsirEdition: string;
-	arabicScript: ArabicScript;
-	translationResourceId: string;
-	tafsirResourceId: string;
-	fontByScript: Record<string, string>;
-	hadithSunnahApiKey: string;
-	bookmarksPath: string;
-	bookmarkDefaultCollection: string;
-	bookmarkShowFavourites: boolean;
-	bookmarkSort: BookmarkSort;
-	bookmarkRecentCount: number;
-	readerMaxWidth: number;
-	readerAyahNumColor: string;
-	readerTafsirColor: string;
-	readerBismillahSize: number;
-	readerTitleSize: number;
-	readerHideScriptPicker: boolean;
-	readerHideFontPicker: boolean;
-	readerHideTafsirPicker: boolean;
-	readerHideSizeButtons: boolean;
-	readerHidePopout: boolean;
-	readerHideNav: boolean;
-}
-
-const DEFAULT_SETTINGS: FalahSettings = {
-	translationEdition: "en.sahih",
-	tafsirEdition: "",
-	arabicScript: "uthmani",
-	translationResourceId: CORE_CLEARQURAN_ID,
-	tafsirResourceId: "",
-	fontByScript: { ...DEFAULT_FONT_BY_SCRIPT },
-	hadithSunnahApiKey: "",
-	bookmarksPath: "Falah/bookmarks.json",
-	bookmarkDefaultCollection: "Bookmarks",
-	bookmarkShowFavourites: true,
-	bookmarkSort: "added",
-	bookmarkRecentCount: 5,
-	readerMaxWidth: 720,
-	readerAyahNumColor: "",
-	readerTafsirColor: "",
-	readerBismillahSize: 1.4,
-	readerTitleSize: 1.3,
-	readerHideScriptPicker: false,
-	readerHideFontPicker: false,
-	readerHideTafsirPicker: false,
-	readerHideSizeButtons: false,
-	readerHidePopout: false,
-	readerHideNav: false,
-};
+import { openReferenceActionMenu, resolveReferenceActionItems } from "./reference-menu";
+import { DEFAULT_SETTINGS, type FalahSettings } from "./settings";
+import { FalahSettingTab } from "./settings-tab";
+import { registerCommands } from "./commands/register";
+import { applyReaderTheme } from "./controllers/reader-theme";
+import { QuranDiscoveryController } from "./controllers/quran-discovery";
+import { BookmarkOperationsController } from "./controllers/bookmark-operations";
+import { ReferenceActionsController } from "./controllers/reference-actions";
+import { createPluginApi } from "./controllers/plugin-api";
 
 export default class FalahPlugin extends Plugin {
+	private settingsTab!: FalahSettingTab;
 	settings: FalahSettings = { ...DEFAULT_SETTINGS };
 	cache!: RefCache;
 	io!: FileIO; // plugin-dir-scoped; also used directly by the imports/ scan (Task 10)
@@ -148,15 +80,33 @@ export default class FalahPlugin extends Plugin {
 	/** Per-verse menu actions; seeded with the defaults, appendable by future
 	 *  subsystems (audio, journaling) without touching the reader. */
 	private verseActionRegistry = new VerseActionRegistry(defaultVerseActions());
+	private referenceActionRegistry = new ReferenceActionRegistry();
 	private slashItemRegistry = new SlashItemRegistry();
 	ayahRowDecorators: AyahRowDecorator[] = [];
 	api!: FalahApi;
 	fonts!: FontManager;
 	bookmarks!: BookmarkStoreService;
+	progress!: ReadingProgressService;
+	recitation!: RecitationController;
+	recitationOffline?: RecitationOfflineManager;
+	wordData!: LocalWordByWordData;
+	qcf!: QcfStore;
+	private discovery!: QuranDiscoveryController;
+	private bookmarkOperations!: BookmarkOperationsController;
+	private referenceActions!: ReferenceActionsController;
 	hadithIndex!: InstallIndex;
 
 	registerVerseAction(action: VerseAction): () => void {
 		return this.verseActionRegistry.register(action);
+	}
+	registerReferenceAction(action: ReferenceAction): () => void {
+		return this.referenceActionRegistry.register(action);
+	}
+	referenceActionItems(ref: IslamicReference) {
+		return resolveReferenceActionItems(this.referenceActionRegistry.list(), ref);
+	}
+	openReferenceActionMenu(ref: IslamicReference, event: MouseEvent): void {
+		void openReferenceActionMenu(this.referenceActionRegistry.list(), ref, event);
 	}
 	verseActionList(): VerseAction[] {
 		return this.verseActionRegistry.list();
@@ -214,13 +164,46 @@ export default class FalahPlugin extends Plugin {
 		);
 
 		this.io = makeFileIO(this.app.vault.adapter, this.manifest.dir ?? "");
+		this.qcf = new QcfStore(this.app.vault.adapter, this.manifest.dir ?? "", requestUrl);
 		const vaultIo = makeFileIO(this.app.vault.adapter, "");
-		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath);
+		this.bookmarks = new BookmarkStoreService(vaultIo, this.settings.bookmarksPath, () => Date.now(), 3000, {
+			schedule: (callback, delayMs) => window.setTimeout(callback, delayMs),
+			cancel: (timer) => window.clearTimeout(timer),
+		});
 		await this.bookmarks.load();
 		this.bookmarks.setDefaultGroup(this.settings.bookmarkDefaultCollection);
 		this.bookmarks.setRecentCap(this.settings.bookmarkRecentCount);
+		this.progress = new ReadingProgressService(vaultIo, this.settings.progressPath, {
+			scheduler: {
+				setTimeout: (callback, delayMs) => window.setTimeout(callback, delayMs),
+				clearTimeout: (handle) => window.clearTimeout(handle),
+			},
+			onPersistError: (error) => logMessage(errMsg(error), "warn"),
+		});
+		await this.progress.load();
 		this.store = new DataStore(this.io);
 		this.registry = new Registry(this.io, this.store, new CoreLoader(defaultCoreImportMap));
+		this.wordData = new LocalWordByWordData(this.store, this.registry);
+		const surahCounts = new Map((await this.registry.core.getSurahs()).map((surah) => [surah.number, surah.ayahCount]));
+		const reciter = RECITERS.find((item) => item.id === this.settings.reciterId) ?? RECITERS[0];
+			this.recitation = new RecitationController(
+			new HtmlAudioBackend(),
+			reciter,
+			(surah) => surahCounts.get(surah) ?? 1,
+				createDefaultAudioSourceResolver(),
+			);
+			this.recitationOffline = createDefaultRecitationOfflineManager(
+				(surah) => surahCounts.get(surah) ?? 0,
+			);
+		this.registerVerseAction({
+			id: "recitation",
+			items: (ctx) => [{
+				title: t().audioPlayVerse,
+				icon: "volume-2",
+				section: "falah-audio",
+				onClick: () => this.recitation.dispatch({ type: "play", ref: { surah: ctx.surah, ayah: ctx.ayah } }),
+			}],
+		});
 		this.fetchJson = makeFetchJson(requestUrl);
 		this.downloadSources = {
 			fawazahmed0: new Fawazahmed0Source(this.fetchJson),
@@ -255,138 +238,60 @@ export default class FalahPlugin extends Plugin {
 		this.hadithSources = [
 			new Fawazahmed0HadithSource(),
 			new AhmedBasetHadithSource(),
-			new SunnahComHadithSource(() => this.settings.hadithSunnahApiKey ?? ""),
+			new SunnahComHadithSource(
+				() => this.settings.hadithSunnahApiKey ?? "",
+				async (url, apiKey) => {
+					const response = await requestUrl({
+						url,
+						throw: false,
+						headers: { "X-API-Key": apiKey },
+					});
+					if (response.status < 200 || response.status >= 300) {
+						throw new Error(`HTTP ${response.status}`);
+					}
+					return response.json as unknown;
+				},
+			),
 			new OpenHadithCsvSource(),
 		];
 		this.hadithCatalog = new CatalogCache<HadithCatalogEntry>(this.io, (key) => `hdata/catalog-${key}.json`);
+		this.discovery = new QuranDiscoveryController({
+			app: this.app,
+			registry: this.registry,
+			quranData: this.quranData,
+			navigate: (surah, ayah) => this.navigateReaderTo(surah, ayah),
+		});
+		this.bookmarkOperations = new BookmarkOperationsController({
+			app: this.app,
+			bookmarks: this.bookmarks,
+			quranData: this.quranData,
+			hadith: this.hadith,
+			bookmarksPath: () => this.settings.bookmarksPath,
+		});
+		this.referenceActions = new ReferenceActionsController({
+			cache: this.cache,
+			sourceChain: this.sourceChain,
+			hadith: this.hadith,
+			settings: () => this.settings,
+		});
 
 		this.registerEditorSuggest(new SlashSuggest(this));
 		this.registerEditorExtension(livePreviewChips(this));
 		this.registerMarkdownPostProcessor(falahPostProcessor(this));
-		this.addSettingTab(new FalahSettingTab(this));
+		this.settingsTab = new FalahSettingTab(this);
+		this.addSettingTab(this.settingsTab);
 
 		this.registerView(VIEW_TYPE_QURAN_READER, (leaf) => new QuranReaderView(leaf, this));
 		this.registerView(VIEW_TYPE_BOOKMARKS, (leaf) => new BookmarksView(leaf, this));
-		this.api = {
-			version: FALAH_API_VERSION,
-			registerVerseAction: (a) => this.registerVerseAction(a),
-			registerAyahRowDecorator: (d) => this.registerAyahRowDecorator(d),
-			registerSlashItem: (i) => this.registerSlashItem(i),
-			pickVerse: () => this.pickVerse(),
-			getVerseText: (s, a) => this.getVerseText(s, a),
-			navigateReaderTo: (s, a) => this.navigateReaderTo(s, a),
-			refreshReader: () => this.refreshReaderRows(),
-			ref: FALAH_REF,
-			bookmarks: {
-				list: () => this.bookmarks.list(),
-				has: (anchor, lens) => this.bookmarks.has(anchor, lens),
-				add: (input) => this.bookmarks.add(input),
-				remove: (id) => this.bookmarks.remove(id),
-				setFavourite: (anchor, on, lens) => this.bookmarks.setFavourite(anchor, on, lens),
-				favourites: () => this.bookmarks.favourites(),
-				createCollection: (name) => this.bookmarks.createGroup(name),
-				moveItem: (id, toGroupId) => this.bookmarks.moveItem(id, toGroupId),
-			},
-			onBookmarksChanged: (cb) => this.bookmarks.onChange(cb),
-		};
+		this.api = createPluginApi(this);
 		// Announce a fresh API on every load — a disable/re-enable of Falah produces a
 		// NEW api object with empty registries, so companions must know to re-register.
 		this.app.workspace.trigger(FALAH_API_READY_EVENT, this.api);
-		this.addRibbonIcon("book-open", t().ribbonOpenReader, () => void this.openReader());
-		this.addCommand({
-			id: "open-quran-reader",
-			name: t().cmdOpenReader,
-			callback: () => void this.openReader(),
-		});
-		this.addCommand({
-			id: "pop-out-quran-reader",
-			name: t().cmdPopOutReader,
-			callback: () => {
-				const leaf = this.findReaderLeaf();
-				if (leaf) this.app.workspace.moveLeafToPopout(leaf);
-				else logMessage(t().noticeOpenReaderFirst, "warn");
-			},
-		});
-
-		this.addCommand({
-			id: "jump-to",
-			name: t().cmdJumpTo,
-			callback: () => new NavigateModal(this).open(),
-		});
-		this.addCommand({
-			id: "insert-quran",
-			name: t().cmdInsertQuran,
-			editorCallback: (editor) =>
-				new QuranSearchModal(this, (ref) => {
-					if (ref) void this.insertReference(editor, ref);
-				}).open(),
-		});
-		this.addCommand({
-			id: "insert-hadith",
-			name: t().cmdInsertHadith,
-			editorCallback: (editor) => new HadithCollectionPickerModal(this, editor).open(),
-		});
-		this.addCommand({
-			id: "insert-honorific",
-			name: t().cmdInsertHonorific,
-			editorCallback: (editor) => new HonorificModal(this, editor).open(),
-		});
-		this.addCommand({
-			id: "open-detail",
-			name: t().cmdOpenDetail,
-			editorCheckCallback: (checking, editor) => {
-				const ref = this.refUnderCursor(editor);
-				if (!ref) return false;
-				if (!checking) this.openDetail(ref);
-				return true;
-			},
-		});
-		this.addCommand({
-			id: "copy-reference-text",
-			name: t().cmdCopyReferenceText,
-			editorCheckCallback: (checking, editor) => {
-				const ref = this.refUnderCursor(editor);
-				if (!ref) return false;
-				if (!checking) void this.copyReferenceText(ref);
-				return true;
-			},
-		});
-		this.addCommand({
-			id: "refresh-reference",
-			name: t().cmdRefreshReference,
-			editorCallback: (editor) => void this.refreshAtCursor(editor),
-		});
-
-		this.addRibbonIcon("bookmark", t().ribbonOpenBookmarks, () => void this.openBookmarks());
-		this.addCommand({
-			id: "open-bookmarks",
-			name: t().cmdOpenBookmarks,
-			callback: () => void this.openBookmarks(),
-		});
-		this.addCommand({
-			id: "bookmark-under-cursor",
-			name: t().cmdBookmarkUnderCursor,
-			editorCheckCallback: (checking, editor) => {
-				const ref = this.refUnderCursor(editor);
-				if (!ref) return false;
-				if (!checking) void this.bookmarks.add({ anchor: toUri(ref) });
-				return true;
-			},
-		});
-		this.addCommand({
-			id: "export-bookmarks",
-			name: t().cmdExportBookmarks,
-			callback: () => void this.exportBookmarks(),
-		});
-		this.addCommand({
-			id: "import-bookmarks",
-			name: t().cmdImportBookmarks,
-			editorCallback: (editor) => void this.importBookmarks(editor.getValue()),
-		});
-		this.addCommand({
-			id: "cleanup-bookmarks",
-			name: t().cmdCleanupBookmarks,
-			callback: () => void this.cleanupBookmarks(),
+		registerCommands({
+			plugin: this,
+			addCommand: (command) => { this.addCommand(command); },
+			addRibbonIcon: (icon, title, callback) => { this.addRibbonIcon(icon, title, callback); },
+			findReaderLeaf: () => this.findReaderLeaf(),
 		});
 	}
 
@@ -406,6 +311,8 @@ export default class FalahPlugin extends Plugin {
 
 	onunload(): void {
 		void this.bookmarks?.flush();
+		void this.progress?.flush();
+		this.recitation?.dispose();
 	}
 
 	/** Ask the user to choose a verse, via the same search modal `/quran` uses.
@@ -437,13 +344,6 @@ export default class FalahPlugin extends Plugin {
 		else logMessage(t().noticeUnsupportedReference(uri), "warn");
 	}
 
-	/** Open (or focus) the single Quran Reader at a surah/ayah, navigating an
-	 *  existing one in place. The reader leaf is found by scanning ALL leaves and
-	 *  matching the persisted view-state type — not `getLeavesOfType` + `instanceof
-	 *  QuranReaderView`, because a backgrounded leaf is *deferred* (Obsidian 1.7.2+):
-	 *  its `.view` is a `DeferredView`, not our class, and it can be missed by the
-	 *  typed lookup, which made every open spawn a new tab. `getViewState().type`
-	 *  is set on deferred leaves and works across popout windows too. */
 	/** Find the single reader leaf across all windows, matching deferred leaves too. */
 	private findReaderLeaf(): WorkspaceLeaf | undefined {
 		let leaf: WorkspaceLeaf | undefined;
@@ -458,8 +358,17 @@ export default class FalahPlugin extends Plugin {
 	 *  user having to close and reopen the reader. No-op if no reader is open or it
 	 *  hasn't loaded yet (a deferred reader re-reads the list when it opens). */
 	refreshReader(): void {
+		this.discovery.invalidateIndex();
 		const leaf = this.findReaderLeaf();
 		if (leaf && leaf.view instanceof QuranReaderView) void leaf.view.refresh();
+	}
+
+	openQuranBrowse(): void {
+		this.discovery.openBrowse();
+	}
+
+	async openOfflineSearch(): Promise<void> {
+		await this.discovery.openOfflineSearch();
 	}
 
 	/** Re-render the open reader's ayah rows (re-runs row decorators), e.g. after a
@@ -471,33 +380,24 @@ export default class FalahPlugin extends Plugin {
 		if (leaf && leaf.view instanceof QuranReaderView) leaf.view.refreshRows();
 	}
 
+	openLibrarySettings(): void {
+		this.settingsTab.openLibrary();
+	}
+
 	/** Pushes the reader-theming settings onto `document.body` as the same CSS custom
 	 *  properties/classes `styles.css` already reads (`--falah-reader-*`,
 	 *  `falah-hide-*`) — pure CSS reactivity, no reader rebuild needed. Called once on
 	 *  load and again from the Reader settings zone after every change. */
 	applyReaderTheme(): void {
-		const s = this.settings;
-		const body = document.body;
-		const setVar = (name: string, value: string) => body.style.setProperty(name, value);
-		const clearVar = (name: string) => body.style.removeProperty(name);
-
-		setVar("--falah-reader-max-width", `${s.readerMaxWidth}px`);
-		if (s.readerAyahNumColor) setVar("--falah-reader-ayah-num-color", s.readerAyahNumColor);
-		else clearVar("--falah-reader-ayah-num-color");
-		if (s.readerTafsirColor) setVar("--falah-reader-tafsir-color", s.readerTafsirColor);
-		else clearVar("--falah-reader-tafsir-color");
-		setVar("--falah-reader-bismillah-size", `${s.readerBismillahSize}em`);
-		setVar("--falah-reader-title-size", `${s.readerTitleSize}em`);
-
-		body.toggleClass("falah-hide-script-picker", s.readerHideScriptPicker);
-		body.toggleClass("falah-hide-font-picker", s.readerHideFontPicker);
-		body.toggleClass("falah-hide-tafsir-picker", s.readerHideTafsirPicker);
-		body.toggleClass("falah-hide-size-buttons", s.readerHideSizeButtons);
-		body.toggleClass("falah-hide-popout", s.readerHidePopout);
-		body.toggleClass("falah-hide-nav", s.readerHideNav);
+		applyReaderTheme(this.settings);
 	}
 
-	async openReader(surah = 1, ayah?: number): Promise<void> {
+	async openReader(surah?: number, ayah?: number): Promise<void> {
+		if (surah === undefined) {
+			const resume = this.settings.progressEnabled ? this.progress.resumeTarget() : undefined;
+			surah = resume?.surah ?? 1;
+			ayah = resume?.ayah;
+		}
 		if (ayah !== undefined) this.recordRecent(toUri({ kind: "quran", surah, ayah }));
 		const { workspace } = this.app;
 		let leaf = this.findReaderLeaf();
@@ -526,1005 +426,51 @@ export default class FalahPlugin extends Plugin {
 	/** Installed hadith collection ids, for the bookmarks view's availability
 	 *  snapshot (Task 3's resolveRow). */
 	async installedHadithCollections(): Promise<string[]> {
-		return (await this.hadith.listBrowsable()).map((c) => c.collection);
+		return this.bookmarkOperations.installedHadithCollections();
 	}
 
 	/** Snapshot of what's installed, for degrading bookmark rows (Task 3's
 	 *  resolveRow). Single source of truth — the bookmarks view and
 	 *  cleanupBookmarks() both delegate here rather than rebuilding the sets. */
 	async availabilitySnapshot(): Promise<AvailabilitySnapshot> {
-		const editions = new Set(
-			(await this.quranData.listResources())
-				.filter((r) => r.type === "translation" || r.type === "tafsir")
-				.map((r) => r.id)
-		);
-		const collections = new Set(await this.installedHadithCollections());
-		return { editions, collections };
+		return this.bookmarkOperations.availabilitySnapshot();
 	}
 
 	async exportBookmarks(): Promise<void> {
-		const md = exportMarkdown({ version: 1, groups: this.bookmarks.list() });
-		const p = this.settings.bookmarksPath;
-		const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
-		const path = dir ? `${dir}/Bookmarks.md` : "Bookmarks.md";
-		try {
-			if (dir && !(await this.app.vault.adapter.exists(dir))) await this.app.vault.adapter.mkdir(dir);
-			await this.app.vault.adapter.write(path, md);
-			logMessage(t().noticeBookmarksExported(path), "info");
-		} catch (e) {
-			logMessage(t().noticeBookmarksExportFailed(errMsg(e)), "warn");
-		}
+		await this.bookmarkOperations.export();
 	}
 
 	async importBookmarks(text: string): Promise<void> {
-		const incoming = importText(text);
-		// Merge: add every incoming anchor that isn't already present, into its group.
-		for (const g of incoming.groups) {
-			for (const item of g.items) {
-				if (!this.bookmarks.has(item.anchor, item.lens)) {
-					await this.bookmarks.add({ anchor: item.anchor, lens: item.lens, note: item.note, group: g.name });
-				}
-			}
-		}
-		logMessage(t().noticeBookmarksImported, "info");
+		await this.bookmarkOperations.import(text);
 	}
 
 	async cleanupBookmarks(): Promise<void> {
-		const snap = await this.availabilitySnapshot();
-		let removed = 0;
-		for (const g of [...this.bookmarks.list()]) {
-			for (const item of [...g.items]) {
-				const st = resolveRow(item, snap);
-				// Only structurally-invalid anchors (fail to parse) are removed here.
-				// An uninstalled hadith collection or a dormant lens is intentionally
-				// KEPT as a recoverable stub — reinstalling the content restores it.
-				if (!st.anchorOk) {
-					await this.bookmarks.remove(item.id);
-					removed++;
-				}
-			}
-		}
-		logMessage(t().noticeBookmarksCleanedUp(removed), "info");
+		await this.bookmarkOperations.cleanup();
 	}
 
 	async getDetail(ref: IslamicReference): Promise<ReferenceContent> {
-		if (ref.kind === "hadith") return this.hadith.getHadith(ref);
-		return this.sourceChain.getContent(ref, {
-			script: this.settings.arabicScript,
-			translationId: this.settings.translationResourceId || undefined,
-			tafsirId: this.settings.tafsirResourceId || undefined,
-		});
+		return this.referenceActions.getDetail(ref);
 	}
 
 	renderedText(content: ReferenceContent): RenderedText {
-		if (content.ref.kind === "quran") {
-			const d = content as VerseContent;
-			return {
-				arabic: d.arabic,
-				translation: d.translation,
-				attribution: d.surahNameEnglish ? `Surah ${d.surahNameEnglish}` : undefined,
-			};
-		}
-		const d = content as HadithContent;
-		return {
-			arabic: d.arabic,
-			translation: d.translation,
-			attribution: [d.bookName, d.grades].filter(Boolean).join(" · ") || undefined,
-		};
+		return this.referenceActions.renderedText(content);
 	}
 
 	/** Insert at cursor: reference-only inline, callout with fetched text on an empty line. */
 	async insertReference(editor: Editor, ref: IslamicReference): Promise<void> {
-		const cursor = editor.getCursor();
-		if (editor.getLine(cursor.line).trim() !== "") {
-			const link = toMarkdownLink(ref);
-			editor.replaceRange(link, cursor);
-			editor.setCursor({ line: cursor.line, ch: cursor.ch + link.length });
-			return;
-		}
-		let text: RenderedText | undefined;
-		try {
-			text = this.renderedText(await this.getDetail(ref));
-		} catch (e) {
-			logMessage(t().noticeInsertedWithoutText(errMsg(e)), "warn");
-		}
-		editor.replaceRange(toCallout(ref, text) + "\n", cursor);
+		await this.referenceActions.insert(editor, ref);
 	}
 
 	refUnderCursor(editor: Editor): IslamicReference | null {
-		const cursor = editor.getCursor();
-		const refs = findReferences(editor.getLine(cursor.line));
-		if (!refs.length) return null;
-		const hit = refs.find((r) => cursor.ch >= r.index && cursor.ch <= r.index + r.match.length);
-		return (hit ?? refs[0]).ref;
+		return this.referenceActions.refUnderCursor(editor);
 	}
 
-	private async copyReferenceText(ref: IslamicReference): Promise<void> {
-		try {
-			const rendered = this.renderedText(await this.getDetail(ref));
-			const parts = [toLabel(ref), rendered.arabic, rendered.translation].filter(Boolean) as string[];
-			await navigator.clipboard.writeText(parts.join("\n\n"));
-			logMessage(t().noticeReferenceTextCopied, "info");
-		} catch (e) {
-			logMessage(errMsg(e), "error");
-		}
+	async copyReferenceText(ref: IslamicReference): Promise<void> {
+		await this.referenceActions.copyText(ref);
 	}
 
 	/** Refresh cached content; if the cursor is in a reference callout, rewrite its body too. */
-	private async refreshAtCursor(editor: Editor): Promise<void> {
-		const cur = editor.getCursor();
-		const isQuote = (n: number) =>
-			n >= 0 && n < editor.lineCount() && editor.getLine(n).startsWith(">");
-
-		if (isQuote(cur.line)) {
-			let start = cur.line;
-			let end = cur.line;
-			while (isQuote(start - 1)) start--;
-			while (isQuote(end + 1)) end++;
-			const lines: string[] = [];
-			for (let n = start; n <= end; n++) lines.push(editor.getLine(n));
-			const refs = findReferences(lines.join("\n"));
-			if (refs.length) {
-				const ref = refs[0].ref;
-				this.cache.deletePrefix(toUri(ref) + "|");
-				try {
-					const text = this.renderedText(await this.getDetail(ref));
-					editor.replaceRange(
-						toCallout(ref, text),
-						{ line: start, ch: 0 },
-						{ line: end, ch: editor.getLine(end).length }
-					);
-					logMessage(t().noticeRefreshed(toLabel(ref)), "info");
-				} catch (e) {
-					logMessage(errMsg(e), "error");
-				}
-				return;
-			}
-		}
-
-		const ref = this.refUnderCursor(editor);
-		if (!ref) {
-			logMessage(t().noticeNoReferenceUnderCursor, "warn");
-			return;
-		}
-		this.cache.deletePrefix(toUri(ref) + "|");
-		try {
-			await this.getDetail(ref);
-			logMessage(t().noticeCacheRefreshed(toLabel(ref)), "info");
-		} catch (e) {
-			logMessage(errMsg(e), "error");
-		}
-	}
-}
-
-class FalahSettingTab extends PluginSettingTab {
-	constructor(private plugin: FalahPlugin) {
-		super(plugin.app, plugin);
-	}
-
-	/** One-at-a-time guard for every button that does an unlocked read-modify-write
-	 *  on index.json (download, remove, import). Registry.recordSurahInstalled /
-	 *  recordImport are only safe run sequentially (documented in download.ts), so a
-	 *  double-click racing two writers would lose install records. */
-	private busy = false;
-	/** The in-flight download's controller so the Cancel button can reach it. */
-	private activeDownload?: AbortController;
-
-	/** Resource-browser state, persisted across re-renders within a session. */
-	private browse: {
-		source: DownloadSourceId;
-		type: "translation" | "tafsir";
-		catalog: ResourceDescriptor[];
-		updateIds: Set<string>;
-		search: string;
-		language: string; // "" = all
-		loading: boolean;
-		fetched: boolean;
-	} = {
-		source: "fawazahmed0",
-		type: "translation",
-		catalog: [],
-		updateIds: new Set(),
-		search: "",
-		language: "",
-		loading: false,
-		fetched: false,
-	};
-
-	/** Which left-nav tab is open. In-memory only (not persisted) — reopening
-	 *  Settings from scratch always starts on "reader" (see hide()). */
-	private activeTab: "reader" | "library" | "advanced" = "reader";
-
-	display(): void {
-		void this.render();
-	}
-
-	/** Resets the tab selection when Settings closes (or the user navigates to a
-	 *  different settings tab), so the next open starts on Reader. Re-renders
-	 *  that happen while THIS tab stays open (e.g. a zone's own "reload fonts" or
-	 *  "reset color" button calling render() again) don't trigger hide(), so they
-	 *  don't reset the active tab mid-interaction. */
-	hide(): void {
-		this.activeTab = "reader";
-	}
-
-	private async render(): Promise<void> {
-		const { containerEl } = this;
-		containerEl.empty();
-
-		let resources: ResourceDescriptor[];
-		try {
-			resources = await this.plugin.quranData.listResources();
-		} catch (e) {
-			// listResources() is withStorageBoundary-wrapped and can throw a typed
-			// DataError. render() runs detached (`void this.render()`), so degrade to
-			// an error state rather than leaking an unhandled rejection.
-			logMessage(errMsg(e), "error");
-			containerEl.createEl("p", {
-				text: t().libraryLoadResourcesError(errMsg(e)),
-				cls: "falah-settings-error",
-			});
-			return;
-		}
-
-		this.renderCompanionZone(containerEl);
-
-		const shell = containerEl.createDiv({ cls: "falah-settings-shell" });
-		const nav = shell.createDiv({ cls: "falah-settings-nav" });
-		const content = shell.createDiv({ cls: "falah-settings-content" });
-
-		const tabs: { id: "reader" | "library" | "advanced"; label: string }[] = [
-			{ id: "reader", label: t().setTabReader },
-			{ id: "library", label: t().setTabLibrary },
-			{ id: "advanced", label: t().setTabAdvanced },
-		];
-		for (const tabDef of tabs) {
-			const item = nav.createDiv({
-				cls: "falah-settings-nav-item" + (tabDef.id === this.activeTab ? " is-active" : ""),
-				text: tabDef.label,
-			});
-			item.onclick = () => {
-				this.activeTab = tabDef.id;
-				void this.render();
-			};
-		}
-
-		if (this.activeTab === "reader") {
-			this.renderDisplayZone(content, resources);
-			this.renderReaderZone(content);
-		} else if (this.activeTab === "library") {
-			this.renderLibraryZone(content, resources);
-		} else {
-			this.renderAdvancedZone(content);
-		}
-	}
-
-	/** Points at the Tadabbur companion, which builds reflection/journaling on
-	 *  Falah's public API. Stays quiet once it's installed — nobody needs to be
-	 *  sold a plugin they already have. */
-	private renderCompanionZone(containerEl: HTMLElement): void {
-		if (isPluginEnabled(this.app, TADABBUR_PLUGIN_ID)) return;
-
-		new Setting(containerEl).setName(t().setHeadingCompanion).setHeading();
-		const box = containerEl.createDiv({ cls: "falah-companion" });
-		box.createDiv({ cls: "falah-companion-title", text: t().libraryCompanionTitle });
-		box.createDiv({
-			cls: "falah-companion-desc",
-			text: t().libraryCompanionDesc,
-		});
-		const link = box.createEl("a", {
-			cls: "falah-companion-link",
-			text: t().libraryGetTadabbur,
-			href: TADABBUR_URL,
-		});
-		link.setAttr("target", "_blank");
-		link.setAttr("rel", "noopener");
-	}
-
-	private renderDisplayZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		new Setting(containerEl).setName(t().setHeadingDisplay).setHeading();
-
-		new Setting(containerEl)
-			.setName(t().setArabicScriptName)
-			.setDesc(t().setArabicScriptDesc)
-			.addDropdown((d) =>
-				d
-					.addOption("uthmani", t().libraryScriptUthmaniOption)
-					.addOption("indopak", t().libraryScriptIndopakOption)
-					.setValue(this.plugin.settings.arabicScript)
-					.onChange(async (v) => {
-						this.plugin.settings.arabicScript = v;
-						await this.plugin.persist();
-					})
-			);
-
-		const label = (r: ResourceDescriptor) => (r.tier === "bundled" ? t().libraryResourceDefault(r.name) : r.name);
-
-		new Setting(containerEl)
-			.setName(t().setPreferredTranslationName)
-			.setDesc(t().setPreferredTranslationDesc)
-			.addDropdown((d) => {
-				d.addOption("", t().libraryNoneOption);
-				for (const r of resources.filter((x) => x.type === "translation")) d.addOption(r.id, label(r));
-				d.setValue(this.plugin.settings.translationResourceId).onChange(async (v) => {
-					this.plugin.settings.translationResourceId = v;
-					await this.plugin.persist();
-				});
-			});
-
-		new Setting(containerEl)
-			.setName(t().setPreferredTafsirName)
-			.setDesc(t().setPreferredTafsirDesc)
-			.addDropdown((d) => {
-				d.addOption("", t().libraryNoneOption);
-				for (const r of resources.filter((x) => x.type === "tafsir")) d.addOption(r.id, label(r));
-				d.setValue(this.plugin.settings.tafsirResourceId).onChange(async (v) => {
-					this.plugin.settings.tafsirResourceId = v;
-					await this.plugin.persist();
-				});
-			});
-		// --- Fonts (per script) ---
-		const scripts: { id: ArabicScript }[] = [{ id: "uthmani" }, { id: "indopak" }];
-		const scriptFontName = (id: ArabicScript): string =>
-			id === "uthmani" ? t().setUthmaniFontName : t().setIndopakFontName;
-		// Extra families offered beyond the bundled set: vault fonts + any system
-		// font already chosen (so the current value stays selectable) + detected.
-		const detected: string[] = [];
-		const fontOptions = (script: ArabicScript): string[] =>
-			dedupeFamilies(
-				[
-					...bundledFontsForScript(script).map((f) => f.family),
-					...this.plugin.fonts.vaultFamilies(),
-					...detected,
-					this.plugin.settings.fontByScript[script],
-				].filter(Boolean)
-			);
-
-		for (const s of scripts) {
-			new Setting(containerEl)
-				.setName(scriptFontName(s.id))
-				.setDesc(t().setScriptFontDesc)
-				.addDropdown((d) => {
-					for (const fam of fontOptions(s.id)) d.addOption(fam, fam);
-					d.setValue(this.plugin.settings.fontByScript[s.id]).onChange(async (v) => {
-						this.plugin.settings.fontByScript[s.id] = v;
-						await this.plugin.persist();
-						this.plugin.refreshReader();
-					});
-				})
-				.addText((tc) =>
-					tc.setPlaceholder(t().libraryCustomFontPlaceholder).onChange(async (v) => {
-						const fam = v.trim();
-						if (!fam) return;
-						this.plugin.settings.fontByScript[s.id] = fam;
-						await this.plugin.persist();
-						this.plugin.refreshReader();
-					})
-				);
-		}
-
-		new Setting(containerEl)
-			.setName(t().setFontSourcesName)
-			.setDesc(t().setFontSourcesDesc(this.plugin.manifest.dir ?? ""))
-			.addButton((b) =>
-				b.setButtonText(t().libraryDetectFontsButton).onClick(async () => {
-					try {
-						const fams = await enumerateSystemFonts();
-						if (!fams.length) {
-							logMessage(t().noticeFontDetectionUnavailable, "warn");
-							return;
-						}
-						detected.push(...fams);
-						logMessage(t().noticeFontsDetected(fams.length), "info");
-						await this.render();
-					} catch {
-						logMessage(t().noticeFontAccessDenied, "warn");
-					}
-				})
-			)
-			.addButton((b) =>
-				b.setButtonText(t().libraryReloadFontsButton).onClick(async () => {
-					await this.plugin.fonts.reload();
-					logMessage(t().noticeFontsReloaded, "info");
-					this.plugin.refreshReader();
-					await this.render();
-				})
-			);
-	}
-
-	private renderReaderZone(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t().setHeadingReader).setHeading();
-
-		new Setting(containerEl)
-			.setName(t().setReaderMaxWidthName)
-			.setDesc(t().setReaderMaxWidthDesc)
-			.addSlider((s) =>
-				s
-					.setLimits(480, 1200, 20)
-					.setValue(this.plugin.settings.readerMaxWidth)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						this.plugin.settings.readerMaxWidth = v;
-						await this.plugin.persist();
-						this.plugin.applyReaderTheme();
-					})
-			);
-
-		const themedColor = (
-			name: string,
-			desc: string,
-			key: "readerAyahNumColor" | "readerTafsirColor",
-			themeVar: string
-		) => {
-			new Setting(containerEl)
-				.setName(name)
-				.setDesc(desc)
-				.addColorPicker((c) => {
-					const current =
-						this.plugin.settings[key] || getComputedStyle(document.body).getPropertyValue(themeVar).trim();
-					c.setValue(current).onChange(async (v) => {
-						this.plugin.settings[key] = v;
-						await this.plugin.persist();
-						this.plugin.applyReaderTheme();
-					});
-				})
-				.addExtraButton((b) =>
-					b
-						.setIcon("rotate-ccw")
-						.setTooltip(t().setReaderResetColorTooltip)
-						.onClick(async () => {
-							this.plugin.settings[key] = "";
-							await this.plugin.persist();
-							this.plugin.applyReaderTheme();
-							await this.render();
-						})
-				);
-		};
-
-		themedColor(t().setReaderAyahColorName, t().setReaderAyahColorDesc, "readerAyahNumColor", "--text-accent");
-		themedColor(t().setReaderTafsirColorName, t().setReaderTafsirColorDesc, "readerTafsirColor", "--text-muted");
-
-		new Setting(containerEl)
-			.setName(t().setReaderBismillahSizeName)
-			.setDesc(t().setReaderBismillahSizeDesc)
-			.addSlider((s) =>
-				s
-					.setLimits(1, 2.4, 0.1)
-					.setValue(this.plugin.settings.readerBismillahSize)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						this.plugin.settings.readerBismillahSize = v;
-						await this.plugin.persist();
-						this.plugin.applyReaderTheme();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName(t().setReaderTitleSizeName)
-			.setDesc(t().setReaderTitleSizeDesc)
-			.addSlider((s) =>
-				s
-					.setLimits(1, 2, 0.1)
-					.setValue(this.plugin.settings.readerTitleSize)
-					.setDynamicTooltip()
-					.onChange(async (v) => {
-						this.plugin.settings.readerTitleSize = v;
-						await this.plugin.persist();
-						this.plugin.applyReaderTheme();
-					})
-			);
-
-		const hideToggle = (
-			name: string,
-			desc: string,
-			key:
-				| "readerHideScriptPicker"
-				| "readerHideFontPicker"
-				| "readerHideTafsirPicker"
-				| "readerHideSizeButtons"
-				| "readerHidePopout"
-				| "readerHideNav"
-		) => {
-			new Setting(containerEl)
-				.setName(name)
-				.setDesc(desc)
-				.addToggle((tg) =>
-					tg.setValue(this.plugin.settings[key]).onChange(async (v) => {
-						this.plugin.settings[key] = v;
-						await this.plugin.persist();
-						this.plugin.applyReaderTheme();
-					})
-				);
-		};
-
-		hideToggle(t().setReaderHideScriptPickerName, t().setReaderHideScriptPickerDesc, "readerHideScriptPicker");
-		hideToggle(t().setReaderHideFontPickerName, t().setReaderHideFontPickerDesc, "readerHideFontPicker");
-		hideToggle(t().setReaderHideTafsirPickerName, t().setReaderHideTafsirPickerDesc, "readerHideTafsirPicker");
-		hideToggle(t().setReaderHideSizeButtonsName, t().setReaderHideSizeButtonsDesc, "readerHideSizeButtons");
-		hideToggle(t().setReaderHidePopoutName, t().setReaderHidePopoutDesc, "readerHidePopout");
-		hideToggle(t().setReaderHideNavName, t().setReaderHideNavDesc, "readerHideNav");
-	}
-
-	private renderLibraryZone(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		new Setting(containerEl).setName(t().setHeadingLibrary).setHeading();
-		const installedIds = new Set(resources.map((r) => r.id));
-
-		// --- Browse & install ---
-		new Setting(containerEl).setName(t().setHeadingBrowseInstall).setHeading();
-
-		const bar = containerEl.createDiv({ cls: "falah-filter-bar" });
-		const searchInput = bar.createEl("input", { type: "search", cls: "falah-search" });
-		searchInput.placeholder = t().libraryResourceSearchPlaceholder;
-		searchInput.value = this.browse.search;
-		const langSelect = bar.createEl("select", { cls: "dropdown falah-lang-select" });
-		const typeSelect = bar.createEl("select", { cls: "dropdown" });
-		typeSelect.createEl("option", { value: "translation", text: t().libraryTypeTranslationOption });
-		typeSelect.createEl("option", { value: "tafsir", text: t().libraryTypeTafsirOption });
-		typeSelect.value = this.browse.type;
-		const sourceSelect = bar.createEl("select", { cls: "dropdown" });
-		for (const id of ["fawazahmed0", "alquran-cloud", "qul"] as DownloadSourceId[]) {
-			sourceSelect.createEl("option", { value: id, text: SOURCE_LABELS[id] });
-		}
-		sourceSelect.value = this.browse.source;
-		const refreshBtn = bar.createEl("button", { text: t().libraryRefreshButton, cls: "falah-refresh" });
-
-		const listEl = containerEl.createDiv({ cls: "falah-resource-list" });
-		const progressEl = containerEl.createDiv({ cls: "falah-download-progress" });
-
-		const rebuildLangOptions = () => {
-			langSelect.empty();
-			langSelect.createEl("option", { value: "", text: t().libraryAllLanguagesOption });
-			for (const { value, name } of distinctLanguages(this.browse.catalog)) {
-				langSelect.createEl("option", { value, text: name });
-			}
-			langSelect.value = this.browse.language;
-		};
-
-		const renderList = () => {
-			listEl.empty();
-			if (this.browse.loading) {
-				listEl.createEl("p", { text: t().libraryLoading, cls: "falah-muted" });
-				return;
-			}
-			if (!this.browse.fetched) {
-				listEl.createEl("p", { text: t().libraryPickSourcePrompt, cls: "falah-muted" });
-				return;
-			}
-			const filtered = filterCatalog(this.browse.catalog, {
-				search: this.browse.search,
-				language: this.browse.language,
-			});
-			if (!filtered.length) {
-				listEl.createEl("p", { text: t().libraryNoResourcesMatch, cls: "falah-muted" });
-				return;
-			}
-			for (const desc of filtered) {
-				this.renderResourceRow(listEl, desc, installedIds.has(desc.id), progressEl);
-			}
-		};
-
-		const fetchCatalog = async (force: boolean) => {
-			this.browse.loading = true;
-			this.browse.fetched = true;
-			renderList();
-			try {
-				const source = this.plugin.downloadSources[this.browse.source];
-				const { resources: catalog } = await this.plugin.registry.getCatalog(
-					this.browse.source,
-					this.browse.type,
-					() => source.listCatalog(this.browse.type),
-					{ force }
-				);
-				this.browse.catalog = catalog;
-				this.browse.updateIds = new Set(await this.plugin.registry.updatesAvailable(catalog));
-			} catch (e) {
-				this.browse.catalog = [];
-				logMessage(errMsg(e), "error");
-			} finally {
-				this.browse.loading = false;
-				rebuildLangOptions();
-				renderList();
-			}
-		};
-
-		searchInput.addEventListener("input", () => {
-			this.browse.search = searchInput.value;
-			renderList();
-		});
-		langSelect.addEventListener("change", () => {
-			this.browse.language = langSelect.value;
-			renderList();
-		});
-		typeSelect.addEventListener("change", () => {
-			this.browse.type = typeSelect.value as "translation" | "tafsir";
-			this.browse.language = "";
-			void fetchCatalog(false);
-		});
-		sourceSelect.addEventListener("change", () => {
-			this.browse.source = sourceSelect.value as DownloadSourceId;
-			this.browse.language = "";
-			void fetchCatalog(false);
-		});
-		refreshBtn.addEventListener("click", () => void fetchCatalog(true));
-
-		rebuildLangOptions();
-		if (this.browse.fetched) renderList();
-		else void fetchCatalog(false);
-
-		// --- Installed resources ---
-		new Setting(containerEl).setName(t().setHeadingInstalledResources).setHeading();
-		const installed = resources.filter((x) => x.tier !== "bundled");
-		if (!installed.length) containerEl.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
-		for (const r of installed) {
-			new Setting(containerEl)
-				.setName(r.name)
-				.setDesc(`${r.type} · ${TIER_LABELS[r.tier]}${r.source ? ` · ${SOURCE_LABELS[r.source]}` : ""}`)
-				.addButton((b) =>
-					b
-						.setButtonText(t().libraryRemoveButton)
-						.setWarning()
-						.onClick(() => void this.removeResource(r))
-				);
-		}
-
-		// --- Manual import ---
-		new Setting(containerEl).setName(t().setHeadingManualImport).setHeading();
-		new Setting(containerEl)
-			.setName(t().setScanImportsName)
-			.setDesc(t().setScanImportsDesc)
-			.addButton((b) =>
-				b.setButtonText(t().libraryScanButton).onClick(async () => {
-					if (this.busy) {
-						logMessage(t().noticeDownloadOrImportInProgress, "warn");
-						return;
-					}
-					this.busy = true;
-					b.setDisabled(true);
-					try {
-						const result = await scanImportsFolder({
-							io: this.plugin.io,
-							store: this.plugin.store,
-							registry: this.plugin.registry,
-						});
-						logMessage(t().noticeImportedResources(result.ok.length, result.failed), "info");
-						this.plugin.refreshReader();
-						await this.render();
-					} catch (e) {
-						logMessage(errMsg(e), "error");
-					} finally {
-						this.busy = false;
-						b.setDisabled(false);
-					}
-				})
-			);
-
-		this.renderHadithLibrary(containerEl);
-	}
-
-	private renderHadithLibrary(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t().setHeadingHadithCollections).setHeading();
-		const hadithBox = containerEl.createDiv({ cls: "falah-hadith-library" });
-
-		const sourceSel = hadithBox.createEl("select", { cls: "dropdown" });
-		for (const s of this.plugin.hadithSources) {
-			sourceSel.createEl("option", { value: s.id, text: s.id });
-		}
-
-		// sunnah.com API key field (shown only when that source is selected)
-		const keyRow = hadithBox.createDiv({ cls: "falah-hadith-keyrow" });
-		const keyInput = keyRow.createEl("input", {
-			type: "text",
-			attr: { placeholder: t().libraryHadithApiKeyPlaceholder },
-		});
-		keyInput.value = this.plugin.settings.hadithSunnahApiKey ?? "";
-		keyInput.onchange = async () => {
-			this.plugin.settings.hadithSunnahApiKey = keyInput.value.trim();
-			await this.plugin.persist();
-		};
-
-		const listEl = hadithBox.createDiv({ cls: "falah-hadith-list" });
-		const status = hadithBox.createDiv({ cls: "falah-hadith-status falah-muted" });
-
-		const source = () => this.plugin.hadithSources.find((s) => s.id === sourceSel.value)!;
-		const isCsv = () => source().id === "mhashim6";
-		const updateKeyVisibility = () => {
-			keyRow.style.display = source().needsApiKey ? "" : "none";
-		};
-
-		const renderCatalog = async (force = false) => {
-			updateKeyVisibility();
-			listEl.empty();
-			status.setText(t().libraryLoadingCatalog);
-			let entries: HadithCatalogEntry[] = [];
-			try {
-				const res = await this.plugin.hadithCatalog.get(
-					source().id,
-					() => source().listCatalog(this.plugin.fetchJson),
-					{ force }
-				);
-				entries = res.resources;
-				status.setText(res.stale ? t().libraryCachedCatalogOffline : "");
-			} catch (e) {
-				status.setText(errMsg(e));
-			}
-			const installed = new Set((await this.plugin.hadith.listInstalled()).map((d) => d.id));
-			for (const entry of entries) {
-				const row = listEl.createDiv({ cls: "falah-hadith-row" });
-				row.createSpan({ text: entry.name });
-				const langSel = row.createEl("select", { cls: "dropdown" });
-				for (const l of entry.languages) langSel.createEl("option", { value: l, text: l });
-				const btn = row.createEl("button");
-				const idFor = () => `${entry.source}-${entry.collection}-${langSel.value}`;
-				const sync = () => {
-					btn.setText(installed.has(idFor()) ? t().libraryRemoveButton : t().libraryInstallButton);
-				};
-				langSel.onchange = sync;
-				sync();
-				btn.onclick = async () => {
-					const id = idFor();
-					btn.disabled = true;
-					try {
-						if (installed.has(id)) {
-							await this.plugin.hadith.remove(id);
-							installed.delete(id);
-						} else {
-							btn.setText(t().libraryDownloadingButton);
-							const transport = isCsv() ? this.plugin.hadithFetchText : this.plugin.fetchJson;
-							const collection = await source().fetchCollection(entry.collection, langSel.value, transport);
-							await this.plugin.hadith.install(
-								{
-									id,
-									source: entry.source,
-									collection: entry.collection,
-									language: langSel.value,
-									name: entry.name,
-									count: collection.hadiths.length,
-								},
-								collection
-							);
-							installed.add(id);
-						}
-					} catch (e) {
-						status.setText(errMsg(e));
-					} finally {
-						btn.disabled = false;
-						sync();
-						void renderInstalled(); // keep the source-independent installed list in sync
-					}
-				};
-			}
-		};
-
-		sourceSel.onchange = () => void renderCatalog();
-		void renderCatalog();
-
-		// ---- Installed hadith collections (source-independent view) ----
-		const installedWrap = hadithBox.createDiv({ cls: "falah-hadith-installed" });
-		const renderInstalled = async () => {
-			installedWrap.empty();
-			new Setting(installedWrap).setName(t().setHeadingInstalledHadithCollections).setHeading();
-			const descs = await this.plugin.hadith.listInstalled();
-			if (!descs.length) {
-				installedWrap.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
-				return;
-			}
-			for (const d of descs) {
-				const row = installedWrap.createDiv({ cls: "falah-hadith-row" });
-				row.createSpan({ text: t().libraryInstalledHadithSummary(d.name, d.count ?? 0, d.source) });
-				const rm = row.createEl("button", { text: t().libraryRemoveButton });
-				rm.onclick = async () => {
-					rm.disabled = true;
-					try {
-						await this.plugin.hadith.remove(d.id);
-					} catch (e) {
-						logMessage(errMsg(e), "error");
-					}
-					await this.render();
-				};
-			}
-		};
-		void renderInstalled();
-	}
-
-	private async removeResource(r: ResourceDescriptor): Promise<void> {
-		if (this.busy) {
-			logMessage(t().noticeResourceOperationInProgress, "warn");
-			return;
-		}
-		this.busy = true;
-		try {
-			await this.plugin.registry.removeResource(r.id, categoryForType(r.type));
-			logMessage(t().noticeRemoved(r.name), "info");
-			this.plugin.refreshReader();
-			await this.render();
-		} catch (e) {
-			logMessage(errMsg(e), "error");
-		} finally {
-			this.busy = false;
-		}
-	}
-
-	private renderResourceRow(
-		listEl: HTMLElement,
-		desc: ResourceDescriptor,
-		installed: boolean,
-		progressEl: HTMLElement
-	): void {
-		const isUpdate = this.browse.updateIds.has(desc.id);
-		const setting = new Setting(listEl)
-			.setName(desc.name)
-			.setDesc(
-				`${languageDisplayName(desc.language)} · ${SOURCE_LABELS[this.browse.source]}` +
-					(isUpdate ? " · update available" : "")
-			);
-
-		if (installed && !isUpdate) {
-			setting.addExtraButton((b) => b.setIcon("checkmark").setTooltip(t().libraryInstalledTooltip).setDisabled(true));
-			setting.addButton((b) =>
-				b
-					.setButtonText(t().libraryRemoveButton)
-					.setWarning()
-					.onClick(() => void this.removeResource(desc))
-			);
-			return;
-		}
-
-		setting.addButton((b) => {
-			b.setButtonText(isUpdate ? t().libraryUpdateButton : t().libraryInstallButton);
-			if (this.busy) b.setDisabled(true);
-			b.onClick(async () => {
-				if (this.busy) {
-					logMessage(t().noticeDownloadOrImportInProgress, "warn");
-					return;
-				}
-				const source = this.plugin.downloadSources[this.browse.source];
-				const controller = new AbortController();
-				this.activeDownload = controller;
-				this.busy = true;
-				b.setDisabled(true);
-				progressEl.empty();
-				const txt = progressEl.createSpan({ text: t().libraryDownloadStarting(desc.name) });
-				const cancelBtn = progressEl.createEl("button", { text: t().libraryCancelButton, cls: "falah-cancel" });
-				cancelBtn.addEventListener("click", () => controller.abort());
-				try {
-					// Update-in-place: downloadResource skips surahs already recorded, so
-					// wipe the old install first (index entry + files) to force a re-fetch.
-					if (isUpdate) {
-						await this.plugin.registry.removeResource(desc.id, categoryForType(desc.type));
-					}
-					await downloadResource(
-						desc,
-						source,
-						{
-							fetchJson: this.plugin.fetchJson,
-							store: this.plugin.store,
-							registry: this.plugin.registry,
-						},
-						(p) => txt.setText(t().libraryDownloadProgress(desc.name, p.surahsDone, p.surahsTotal)),
-						controller.signal
-					);
-					// downloadResource returns early (not throws) on abort — detect here.
-					const cancelled = controller.signal.aborted;
-					// Reset state BEFORE render() rebuilds the list/buttons (rows read
-					// `this.busy` at construction time).
-					this.busy = false;
-					this.activeDownload = undefined;
-					logMessage(cancelled ? t().noticeDownloadCancelled : t().noticeInstalled(desc.name), "info");
-					if (!cancelled) this.plugin.refreshReader();
-					await this.render();
-				} catch (e) {
-					this.busy = false;
-					this.activeDownload = undefined;
-					progressEl.empty();
-					b.setDisabled(false);
-					logMessage(t().noticeDownloadFailed(errMsg(e)), "error");
-				}
-			});
-		});
-	}
-
-	private renderAdvancedZone(containerEl: HTMLElement): void {
-		const details = containerEl.createEl("details", { cls: "falah-advanced" });
-		details.createEl("summary", { text: t().setHeadingAdvanced });
-
-		new Setting(details)
-			.setName(t().setOnlineFallbackTranslationName)
-			.setDesc(t().setOnlineFallbackTranslationDesc)
-			.addText((t) =>
-				t
-					.setPlaceholder(DEFAULT_SETTINGS.translationEdition)
-					.setValue(this.plugin.settings.translationEdition)
-					.onChange(async (v) => {
-						this.plugin.settings.translationEdition = v.trim() || DEFAULT_SETTINGS.translationEdition;
-						await this.plugin.persist();
-					})
-			);
-
-		new Setting(details)
-			.setName(t().setOnlineFallbackTafsirName)
-			.setDesc(t().setOnlineFallbackTafsirDesc)
-			.addText((t) =>
-				t.setValue(this.plugin.settings.tafsirEdition).onChange(async (v) => {
-					this.plugin.settings.tafsirEdition = v.trim();
-					await this.plugin.persist();
-				})
-			);
-
-		new Setting(details).setName(t().setHeadingBookmarks).setHeading();
-
-		new Setting(details)
-			.setName(t().setBookmarkDefaultCollectionName)
-			.setDesc(t().setBookmarkDefaultCollectionDesc)
-			.addDropdown((d) => {
-				const names = Array.from(new Set([
-					"Bookmarks",
-					...this.plugin.bookmarks.list().map((g) => g.name),
-				]));
-				for (const n of names) d.addOption(n, n);
-				d.setValue(this.plugin.settings.bookmarkDefaultCollection);
-				d.onChange(async (v) => {
-					this.plugin.settings.bookmarkDefaultCollection = v || "Bookmarks";
-					await this.plugin.persist();
-					this.plugin.bookmarks.setDefaultGroup(v || "Bookmarks");
-				});
-			});
-
-		new Setting(details)
-			.setName(t().setBookmarkShowFavouritesName)
-			.setDesc(t().setBookmarkShowFavouritesDesc)
-			.addToggle((tg) => tg
-				.setValue(this.plugin.settings.bookmarkShowFavourites)
-				.onChange(async (v) => {
-					this.plugin.settings.bookmarkShowFavourites = v;
-					await this.plugin.persist();
-				}));
-
-		new Setting(details)
-			.setName(t().setBookmarkSortName)
-			.addDropdown((d) => {
-				d.addOption("added", t().sortAddedLabel);
-				d.addOption("manual", t().sortManualLabel);
-				d.addOption("surah", t().sortSurahLabel);
-				d.setValue(this.plugin.settings.bookmarkSort);
-				d.onChange(async (v) => {
-					this.plugin.settings.bookmarkSort = v as BookmarkSort;
-					await this.plugin.persist();
-				});
-			});
-
-		new Setting(details)
-			.setName(t().setBookmarkRecentCountName)
-			.setDesc(t().setBookmarkRecentCountDesc)
-			.addText((tx) => tx
-				.setValue(String(this.plugin.settings.bookmarkRecentCount))
-				.onChange(async (v) => {
-					const n = Math.max(0, Math.floor(Number(v) || 0));
-					this.plugin.settings.bookmarkRecentCount = n;
-					this.plugin.bookmarks.setRecentCap(n);
-					await this.plugin.persist();
-				}));
-
-		new Setting(details)
-			.setName(t().setBookmarksPathName)
-			.setDesc(t().setBookmarksPathDesc)
-			.addText((tx) =>
-				tx
-					.setPlaceholder(DEFAULT_SETTINGS.bookmarksPath)
-					.setValue(this.plugin.settings.bookmarksPath)
-					.onChange(async (v) => {
-						this.plugin.settings.bookmarksPath = v.trim() || DEFAULT_SETTINGS.bookmarksPath;
-						await this.plugin.persist();
-					})
-			);
-
-		new Setting(details)
-			.setName(t().setClearCacheName)
-			.setDesc(t().setClearCacheDesc)
-			.addButton((b) =>
-				b.setButtonText(t().libraryClearButton).onClick(() => {
-					this.plugin.cache.deletePrefix("");
-					logMessage(t().noticeCacheCleared, "info");
-				})
-			);
+	async refreshAtCursor(editor: Editor): Promise<void> {
+		await this.referenceActions.refreshAtCursor(editor);
 	}
 }

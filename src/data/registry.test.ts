@@ -37,8 +37,9 @@ describe("Registry index round-trip", () => {
 			language: "en",
 			tier: "downloaded" as const,
 			source: "fawazahmed0" as const,
-			sourceResourceId: "eng-ahmedali",
-			license: "Unlicense (public domain)",
+				sourceResourceId: "eng-ahmedali",
+				license: "Unlicense (public domain)",
+				meta: { chapterNames: { "1": "The Opening" } },
 		};
 		await registry.recordSurahInstalled(desc, 1);
 		await registry.recordSurahInstalled(desc, 2);
@@ -55,7 +56,9 @@ describe("Registry index round-trip", () => {
 				source: "fawazahmed0",
 				sourceResourceId: "eng-ahmedali",
 				version: undefined,
-				license: "Unlicense (public domain)",
+					license: "Unlicense (public domain)",
+					installedSurahs: [1, 2],
+					meta: { chapterNames: { "1": "The Opening" } },
 			},
 		]);
 	});
@@ -161,10 +164,17 @@ describe("Registry surah/import/remove", () => {
 			language: "en",
 			tier: "user-import" as const,
 			license: "Personal use only",
+			cardinality: "per-word" as const,
 		};
 		await registry.recordImport(desc, [1, 2]);
 		const installed = await registry.listInstalled();
-		expect(installed).toEqual([{ ...desc, source: undefined, sourceResourceId: undefined, version: undefined }]);
+		expect(installed).toEqual([{
+			...desc,
+			source: undefined,
+			sourceResourceId: undefined,
+			version: undefined,
+			installedSurahs: [1, 2],
+		}]);
 	});
 
 	it("removeResource deletes both the index entry and the on-disk resource", async () => {

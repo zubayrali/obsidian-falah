@@ -57,4 +57,13 @@ export default defineConfig(
 			'obsidianmd/prefer-window-timers': 'off',
 		},
 	},
+	{
+		// This integration harness implements Obsidian's DOM convenience methods
+		// on happy-dom itself; plugin-only DOM helper advice does not apply there.
+		files: ['**/*.integration.test.ts'],
+		rules: {
+			'obsidianmd/prefer-create-el': 'off',
+			'obsidianmd/prefer-instanceof': 'off',
+		},
+	},
 );
