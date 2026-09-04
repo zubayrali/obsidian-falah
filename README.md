@@ -50,7 +50,7 @@ npm run lint   # eslint (obsidianmd community-review rules)
 npm run build  # typecheck + production bundle
 ```
 
-Falah exposes a versioned public API (`FALAH_API_VERSION`, currently 6) for companion plugins — see `src/api.ts`. Falah itself depends on no other plugin.
+Falah exposes a versioned public API (`FALAH_API_VERSION`, currently 7) for companion plugins — see `src/api.ts`. Falah itself depends on no other plugin.
 
 ## License
 
