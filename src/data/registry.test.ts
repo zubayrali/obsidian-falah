@@ -318,6 +318,16 @@ describe("Registry.getCatalog", () => {
 });
 
 describe("Registry.updatesAvailable", () => {
+	it("offers an adapter repair even without a changed upstream version", async () => {
+		const io = makeFakeIO();
+		const registry = new Registry(io, new DataStore(io), makeCore());
+		const desc = { id: "qul-164", type: "tafsir" as const, name: "Tafsir", language: "bn", tier: "downloaded" as const };
+		await registry.recordSurahInstalled(desc, 2);
+		const repaired = { ...desc, meta: { adapterRevision: "qul-groups-v2" } };
+		expect(await registry.updatesAvailable([repaired])).toEqual([desc.id]);
+		await registry.recordResourceInstalled(repaired, [2]);
+		expect(await registry.updatesAvailable([repaired])).toEqual([]);
+	});
 	it("flags installed resources whose catalog version differs", async () => {
 		const io = makeFakeIO();
 		const registry = new Registry(io, new DataStore(io), makeCore());

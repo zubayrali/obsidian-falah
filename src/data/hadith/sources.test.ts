@@ -10,11 +10,11 @@ import {
 } from "./sources";
 
 describe("hardcoded hadith catalogs", () => {
-	it("AhmedBaset lists the nine books plus extras, all AR+EN", () => {
+	it("AhmedBaset lists the nine books plus extras with their available languages", () => {
 		expect(AHMEDBASET_BOOKS.length).toBeGreaterThanOrEqual(9);
 		for (const e of AHMEDBASET_BOOKS) {
 			expect(e.source).toBe("ahmedbaset");
-			expect(e.languages).toContain("eng");
+			expect(e.languages).toEqual(e.collection === "darimi" ? ["ara"] : ["ara", "eng"]);
 			expect(e.collection).toMatch(/^[a-z0-9_]+$/);
 			expect(e.name.length).toBeGreaterThan(0);
 		}
@@ -31,6 +31,14 @@ describe("hardcoded hadith catalogs", () => {
 });
 
 describe("hadith source adapters", () => {
+	it("rejects the unavailable Darimi English edition, including stale catalogue selections", async () => {
+		let requested = false;
+		await expect(new AhmedBasetHadithSource().fetchCollection("darimi", "eng", async () => {
+			requested = true;
+			return {};
+		})).rejects.toThrow("Arabic only");
+		expect(requested).toBe(false);
+	});
 	it("loads and normalizes the Fawaz catalogue and bilingual collection", async () => {
 		const source = new Fawazahmed0HadithSource();
 		const catalogUrls: string[] = [];
@@ -98,7 +106,7 @@ describe("hadith source adapters", () => {
 		const collection = await source.fetchCollection("bukhari", "eng", genericTransport);
 		expect(requests).toEqual([
 			{ url: "https://api.sunnah.com/v1/collections?limit=50", key: "secret" },
-			{ url: "https://api.sunnah.com/v1/collections/bukhari/hadiths?page=1&limit=100", key: "secret" },
+			{ url: "https://api.sunnah.com/v1/hadiths?collection=bukhari&page=1&limit=100", key: "secret" },
 		]);
 		expect(collection.hadiths[0].translation).toBe("English");
 	});
@@ -115,6 +123,21 @@ describe("hadith source adapters", () => {
 		});
 		expect(urls[0]).toContain("Sahih_Al-Bukhari/sahih_al-bukhari_ahadith_mushakkala_mufassala.utf8.csv");
 		expect(collection.hadiths).toEqual([{ number: 1, arabic: "نص الحديث" }]);
+	});
+
+	it("follows sunnah.com next pages even when a page is shorter than the requested limit", async () => {
+		const urls: string[] = [];
+		const source = new SunnahComHadithSource(() => " secret ", async (url, key) => {
+			expect(key).toBe("secret");
+			urls.push(url);
+			const page = url.includes("page=2") ? 2 : 1;
+			if (url.includes("/collections?")) return { data: [{ name: `book${page}` }], next: page === 1 ? 2 : null };
+			return { data: [{ hadithNumber: page, hadith: [{ lang: "ar", body: "نص" }] }], next: page === 1 ? 2 : null };
+		});
+		expect(await source.listCatalog(async () => ({}))).toHaveLength(2);
+		const collection = await source.fetchCollection("bukhari", "ara", async () => ({}));
+		expect(collection.hadiths.map((h) => h.number)).toEqual([1, 2]);
+		expect(urls.at(-1)).toBe("https://api.sunnah.com/v1/hadiths?collection=bukhari&page=2&limit=100");
 	});
 
 	it("wraps provider transport failures as typed network errors", async () => {

@@ -45,6 +45,7 @@ export class SuggestModal<T> {
 	}
 }
 export class Setting {}
+export class FuzzySuggestModal<T> extends SuggestModal<T> {}
 export class Notice {}
 export class Menu {}
 export function setIcon(): void {}

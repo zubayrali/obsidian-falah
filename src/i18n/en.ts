@@ -5,6 +5,14 @@
 // word order differs in RTL (Arabic) and in Urdu, and a call site that glues
 // fragments together cannot be translated correctly.
 export const en = {
+	libraryAllSources: "All sources",
+	setLibraryCategoryQuran: "Quran",
+	setLibraryCategoryHadith: "Hadith",
+	setLibraryCategoryAudio: "Audio",
+	setLibraryCategoryPacks: "Reading packs",
+	setLibraryCategoryImport: "Import",
+	setLibraryBrowseResources: "Find more translations and tafsirs",
+	libraryCoverageMissing: (count: number) => `Source has no text for ${count} ayahs`,
 	pluginName: "Falah",
 
 	// -- Reader / commands --

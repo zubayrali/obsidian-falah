@@ -15,7 +15,6 @@ export function renderAdvancedZone(plugin: FalahPlugin, containerEl: HTMLElement
 		title: t().setAdvancedProgressHeading,
 		description: t().setAdvancedProgressDesc,
 		icon: "map-pin-check",
-		open: true,
 	});
 	new Setting(progress)
 		.setName(t().setProgressEnabledName)

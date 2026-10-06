@@ -3,6 +3,9 @@
 
 export interface NormHadith {
 	number: number; // hadith number within the collection
+	/** Exact upstream identifier, including letter suffixes; number remains the legacy ordinal. */
+	referenceNumber?: string;
+	sourceUrl?: string;
 	arabic?: string;
 	translation?: string; // absent for Arabic-only sources
 	narrator?: string; // isnad, flat string

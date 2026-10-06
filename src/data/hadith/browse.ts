@@ -9,9 +9,9 @@ export function filterHadiths(hadiths: NormHadith[], query: string, limit: numbe
 	const q = query.trim();
 	if (!q) return hadiths.slice(0, limit);
 	const out: NormHadith[] = [];
-	if (/^\d+$/.test(q)) {
+	if (/^\d+(?:-\d+)?[a-z]?$/i.test(q)) {
 		for (const h of hadiths) {
-			if (String(h.number).startsWith(q)) out.push(h);
+			if ((h.referenceNumber ?? String(h.number)).startsWith(q.toLowerCase())) out.push(h);
 			if (out.length >= limit) break;
 		}
 		return out;

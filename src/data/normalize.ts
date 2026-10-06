@@ -79,6 +79,7 @@ export function normalizeFawazSurah(json: unknown, surah: number): TranslationVe
 }
 
 interface AlQuranEditionMeta {
+	format?: unknown;
 	identifier?: unknown;
 	language?: unknown;
 	englishName?: unknown;
@@ -96,6 +97,7 @@ export function normalizeAlQuranEditions(json: unknown): ResourceDescriptor[] {
 			throw new SchemaError(`AlQuran.cloud editions: expected object, got ${e === null ? "null" : typeof e}`);
 		}
 		if (e.type !== "translation" && e.type !== "tafsir") continue;
+		if (e.format !== undefined && e.format !== "text") continue;
 		if (typeof e.identifier !== "string" || typeof e.englishName !== "string") {
 			throw new SchemaError("AlQuran.cloud editions: malformed entry");
 		}
@@ -275,6 +277,17 @@ export function normalizeQulTafsirRange(json: unknown): TafsirVerse[] {
 		if (verses.length > 1) out.ayahKeys = verses;
 		return out;
 	});
+}
+
+/** The by_ayah endpoint exposes group coverage as an object keyed by verse. */
+export function normalizeQulTafsirAyah(json: unknown, requestedKey: string, resourceId: string): TafsirVerse {
+	const tafsir = (json as { tafsir?: { resource_id?: unknown; verses?: unknown; text?: unknown } })?.tafsir;
+	if (!tafsir || tafsir.resource_id !== Number(resourceId) || !tafsir.verses || typeof tafsir.verses !== "object" || Array.isArray(tafsir.verses)) {
+		throw new SchemaError("Quran.com tafsir ayah: mismatched resource or missing coverage");
+	}
+	const keys = Object.keys(tafsir.verses);
+	if (!keys.includes(requestedKey)) throw new SchemaError(`Quran.com tafsir does not cover ${requestedKey}`);
+	return normalizeQulTafsirRange({ tafsirs: [{ verses: keys, text: tafsir.text }] })[0];
 }
 
 interface ImportPackJson {

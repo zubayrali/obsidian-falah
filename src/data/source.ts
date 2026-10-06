@@ -148,7 +148,7 @@ export class QuranDataSource implements ContentSource {
 			}
 			const verses = await this.store.loadSurahFile<TafsirVerse[]>("tafsirs", resourceId, f.surah);
 			const wanted = new Set(toAyahKeys({ kind: "quran", surah: f.surah, ayah: f.ayah, toAyah: t.ayah }));
-			const out = verses.filter((v) => wanted.has(v.ayahKey));
+			const out = verses.filter((v) => (v.ayahKeys?.length ? v.ayahKeys : [v.ayahKey]).some((key) => wanted.has(key)));
 			if (out.length === 0) throw new NotFoundError(`${resourceId}: no verses in range ${from}-${to}`);
 			return out;
 		});
@@ -160,7 +160,7 @@ export class QuranDataSource implements ContentSource {
 
 	/** On-demand tafsir for a single verse, group-aware (a tafsir block stored with
 	 *  `ayahKeys` spanning several ayahs is matched for any covered ayah — unlike
-	 *  getTafsir which keys off the block's first ayahKey only). Degrades to
+	 *  ordinary single-verse translation lookup). Degrades to
 	 *  undefined when the tafsir isn't installed or the verse isn't covered. */
 	async getVerseTafsir(
 		tafsirId: string,
@@ -435,6 +435,7 @@ export class LiveApiSource implements ContentSource {
 	}
 
 	private cacheKey(ref: IslamicReference): string {
+		if (ref.kind === "hadith") return `${toUri(ref)}|exact-v2`;
 		const { translation, tafsir } = this.editions();
 		return `${toUri(ref)}|${translation}|${tafsir}`;
 	}

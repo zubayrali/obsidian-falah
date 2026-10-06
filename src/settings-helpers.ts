@@ -25,6 +25,7 @@ export const SOURCE_LABELS: Record<DownloadSourceId, string> = {
 	fawazahmed0: "fawazahmed0 (Quran CDN)",
 	"alquran-cloud": "AlQuran.cloud",
 	qul: "Quran.com resources",
+	"quran-project": "Quran Project",
 };
 
 /** Friendly tier words. The internal "bundled" tier reads as "default" in the UI. */

@@ -14,6 +14,8 @@ import type { FileIO } from "./data/store";
 import { Registry } from "./data/registry";
 import { CoreLoader, defaultCoreImportMap } from "./data/core";
 import { AlQuranCloudSource, Fawazahmed0Source, QulSource } from "./data/download";
+import { QuranProjectSource } from "./data/quran-project";
+import { FallbackHadithProvider, HadithUnlockedProvider, HadithUnlockedSource } from "./data/hadith/unlocked";
 import type { DownloadSource, FetchJson } from "./data/download";
 import { CacheEntry, LiveApiSource, QuranDataSource, RefCache, SourceChain } from "./data/source";
 import type { DownloadSourceId } from "./data/schema";
@@ -209,13 +211,14 @@ export default class FalahPlugin extends Plugin {
 			fawazahmed0: new Fawazahmed0Source(this.fetchJson),
 			"alquran-cloud": new AlQuranCloudSource(this.fetchJson),
 			qul: new QulSource(this.fetchJson),
+			"quran-project": new QuranProjectSource(),
 		};
 
 		const quranProvider = new AlQuranCloudProvider(() => ({
 			translation: this.settings.translationEdition,
 			tafsir: this.settings.tafsirEdition,
 		}));
-		const hadithProvider = new HadithCdnProvider();
+		const hadithProvider = new FallbackHadithProvider(new HadithCdnProvider(), new HadithUnlockedProvider(this.fetchJson));
 		this.liveApi = new LiveApiSource(quranProvider, hadithProvider, this.cache, () => ({
 			translation: this.settings.translationEdition,
 			tafsir: this.settings.tafsirEdition,
@@ -253,6 +256,7 @@ export default class FalahPlugin extends Plugin {
 				},
 			),
 			new OpenHadithCsvSource(),
+			new HadithUnlockedSource(),
 		];
 		this.hadithCatalog = new CatalogCache<HadithCatalogEntry>(this.io, (key) => `hdata/catalog-${key}.json`);
 		this.discovery = new QuranDiscoveryController({

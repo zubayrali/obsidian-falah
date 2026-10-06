@@ -141,6 +141,7 @@ export function normalizeSunnah(
 		const ar = bodies.find((b) => b.lang === "ar");
 		const en = bodies.find((b) => b.lang === "en");
 		const nh: NormHadith = { number: num };
+		if (typeof h.hadithNumber === "string") nh.referenceNumber = h.hadithNumber.toLowerCase();
 		if (ar?.body) nh.arabic = ar.body;
 		if (en?.body) nh.translation = en.body;
 		const g = (en?.grades ?? [])

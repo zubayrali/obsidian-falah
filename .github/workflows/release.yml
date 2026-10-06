@@ -55,6 +55,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes \
+            --notes-file "docs/releases/${GITHUB_REF_NAME}.md" \
             --latest \
-            main.js manifest.json styles.css "falah-${GITHUB_REF_NAME}.zip"
+            main.js manifest.json styles.css "falah-${GITHUB_REF_NAME}.zip" docs/screenshots/*.png

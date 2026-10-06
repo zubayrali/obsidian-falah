@@ -295,7 +295,7 @@ export class HadithBrowseModal extends SuggestModal<NormHadith> {
 		const chapter = h.chapter?.english || h.chapter?.arabic;
 		el.createDiv({
 			cls: "falah-suggest-title",
-			text: `#${h.number}${chapter ? " · " + chapter : ""}`,
+			text: `#${h.referenceNumber ?? h.number}${chapter ? " · " + chapter : ""}`,
 		});
 		const snippet = h.translation || h.arabic || "";
 		el.createDiv({ cls: "falah-suggest-snippet", text: snippet.slice(0, 140) });
@@ -305,7 +305,7 @@ export class HadithBrowseModal extends SuggestModal<NormHadith> {
 		void this.plugin.insertReference(this.editor, {
 			kind: "hadith",
 			collection: this.browsable.collection,
-			number: String(h.number),
+			number: h.referenceNumber ?? String(h.number),
 		});
 	}
 }

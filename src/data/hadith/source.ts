@@ -31,7 +31,7 @@ export interface BrowsableCollection {
 function toContent(ref: HadithRef, h: NormHadith): HadithContent {
 	const content: HadithContent = {
 		ref,
-		externalUrl: hadithExternalUrl(ref),
+		externalUrl: h.sourceUrl ?? hadithExternalUrl(ref),
 		bookName: HADITH_COLLECTION_NAMES[ref.collection] ?? ref.collection,
 	};
 	if (h.arabic) content.arabic = h.arabic;
@@ -43,8 +43,8 @@ function toContent(ref: HadithRef, h: NormHadith): HadithContent {
 	return content;
 }
 
-function findHadith(c: HadithCollection, num: number): NormHadith | undefined {
-	return c.hadiths.find((h) => h.number === num);
+function findHadith(c: HadithCollection, number: string): NormHadith | undefined {
+	return c.hadiths.find((h) => (h.referenceNumber ?? String(h.number)) === number.toLowerCase() && Boolean(h.arabic?.trim() || h.translation?.trim()));
 }
 
 export class HadithResolver {
@@ -56,8 +56,7 @@ export class HadithResolver {
 	) {}
 
 	async getHadith(ref: HadithRef): Promise<HadithContent> {
-		const num = parseInt(ref.number, 10);
-		if (Number.isFinite(num)) {
+		if (/^\d+(?:-\d+)?[a-z]?$/.test(ref.number)) {
 			// 1) installed collections for this slug (prefer one that has a translation)
 			const entries = (await this.index.list()).filter(
 				(e) => e.type === "hadith-collection" && (e.meta?.collection === ref.collection || e.id.includes(`-${ref.collection}-`))
@@ -71,7 +70,7 @@ export class HadithResolver {
 					continue;
 				}
 				if (c.collection !== ref.collection) continue;
-				const h = findHadith(c, num);
+				const h = findHadith(c, ref.number);
 				if (!h) continue;
 				if (h.translation) return toContent(ref, h);
 				arabicOnlyHit ??= h;
@@ -80,7 +79,7 @@ export class HadithResolver {
 			// 2) bundled
 			const bundled = this.core.get(ref.collection);
 			if (bundled) {
-				const h = findHadith(bundled, num);
+				const h = findHadith(bundled, ref.number);
 				if (h) return toContent(ref, h);
 			}
 		}

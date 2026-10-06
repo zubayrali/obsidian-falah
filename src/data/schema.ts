@@ -97,7 +97,7 @@ export type ResourceType =
 export type ResourceTier = "bundled" | "downloaded" | "user-import";
 
 /** Which adapter a downloadable resource comes from (§5.4). */
-export type DownloadSourceId = "fawazahmed0" | "alquran-cloud" | "qul";
+export type DownloadSourceId = "fawazahmed0" | "alquran-cloud" | "qul" | "quran-project";
 
 /** How a resource's content keys to the canonical text (QUL's cardinality_type).
  *  Open-ended: future types add their own without a code change. */

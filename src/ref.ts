@@ -29,6 +29,14 @@ export const HADITH_COLLECTION_NAMES: Record<string, string> = {
 	nawawi: "Nawawi",
 	qudsi: "Qudsi",
 	dehlawi: "Dehlawi",
+	darimi: "Darimi",
+	riyad_assalihin: "Riyad as-Salihin",
+	adab_almufrad: "Al-Adab Al-Mufrad",
+	shamail_muhammadiyah: "Shama'il Muhammadiyah",
+	ahmed: "Musnad Ahmad",
+	shahwaliullah: "Shah Waliullah",
+	bulugh_almaram: "Bulugh al-Maram",
+	mishkat_almasabih: "Mishkat al-Masabih",
 };
 
 function int(s: string): number | null {
@@ -101,7 +109,7 @@ export function parseRefUri(uri: string): IslamicReference | null {
 
 	const collection = parts[0].toLowerCase();
 	const number = parts[1].toLowerCase();
-	if (!/^[a-z][a-z0-9_]*$/.test(collection) || !/^\d+[a-z]?$/.test(number)) return null;
+	if (!/^[a-z][a-z0-9_]*$/.test(collection) || !/^\d+(?:-\d+)?[a-z]?$/.test(number)) return null;
 	return { kind: "hadith", collection, number };
 }
 
@@ -118,7 +126,7 @@ export function parseShorthand(input: string): IslamicReference | null {
 		if (toAyah !== undefined && toAyah !== ayah) ref.toAyah = toAyah;
 		return ref;
 	}
-	const hadith = /^([a-z][a-z0-9_]*)\s*[:\s]\s*(\d+[a-z]?)$/.exec(s);
+	const hadith = /^([a-z][a-z0-9_]*)\s*[:\s]\s*(\d+(?:-\d+)?[a-z]?)$/.exec(s);
 	if (hadith && hadith[1] !== "quran") {
 		return { kind: "hadith", collection: hadith[1], number: hadith[2] };
 	}

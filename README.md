@@ -2,6 +2,36 @@
 
 Quran and Hadith references, native to your Markdown notes. Clickable `falah://` links, a full Quran reader, slash-command lookup, and honorific glyphs — offline-first, desktop and mobile.
 
+[Download the latest release](https://github.com/zubayrali/obsidian-falah/releases/latest) · [What's new in 0.3.0](docs/releases/0.3.0.md)
+
+## Screenshots
+
+Actual desktop screenshots from Obsidian with the Lumin theme. Colors and controls follow your active theme.
+
+### Quran reading and study
+
+Read the Madinah Mushaf in Reading mode, or switch to Study mode for translations, tafsir, and recitation.
+
+![Reading mode showing the QCF4 Madinah Mushaf](docs/screenshots/reader-reading.png)
+
+![Study mode showing Arabic verses with English translation](docs/screenshots/reader-study.png)
+
+### One library for installed and available resources
+
+Browse Quran translations and tafsir together, filter by source and type, and search for a language.
+
+![Quran library with unified installed and available resources](docs/screenshots/library-quran.png)
+
+Choose a language for each hadith collection and install it for offline use.
+
+![Hadith library with compact language pickers and collection actions](docs/screenshots/library-hadith.png)
+
+### Clear settings
+
+Reader, Library, and Advanced tabs keep related settings together, without nested accordions.
+
+![Reader settings with filled active tabs and compact dropdowns](docs/screenshots/settings-reader.png)
+
 ## What it does
 
 - **`falah://` references.** Cite a verse or hadith anywhere in your vault (`falah://quran/2/255`, `falah://hadith/bukhari/1`) and it renders as a clickable chip. Click it to open the reference in a detail view, with a jump into the full reader from there. You rarely write these by hand — `/quran` and `/hadith` generate them for you.
@@ -18,7 +48,7 @@ References Falah writes into notes are plain Markdown (`falah://` links and `> [
 
 Until this is in the community plugin store:
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from this repo's latest release.
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/zubayrali/obsidian-falah/releases/latest), or extract them from the `falah-0.3.0.zip` archive.
 2. Put them in `<vault>/.obsidian/plugins/falah/`.
 3. Reload Obsidian and enable **Falah** in Community Plugins.
 
@@ -31,6 +61,14 @@ Until this is in the community plugin store:
 ## Data sources and privacy
 
 Falah does not send vault contents, filenames, notes, bookmarks, or reading progress to any service. Network access only happens for a feature the user invokes, such as installing a resource, streaming audio, or using the optional online fallback.
+
+Quran translation downloads include [Quran Project](https://github.com/The-Quran-Project/Quran-API), which serves Quran.com-derived English, Bengali, and Urdu chapter files at `quranapi.pages.dev`. Select **Quran Project** in **Settings → Falah → Library → Quran** to install a language for offline reading.
+
+Hadith downloads also include [Hadith Unlocked](https://hadithunlocked.com), with Arabic and English collections, narration chains, and provider-supplied grading. Its installed data preserves exact identifiers such as `muslim:8a`. Online hadith lookup tries the existing hadith CDN first and contacts Hadith Unlocked if that request fails or the CDN cannot represent the exact identifier. These requests send only the selected collection and hadith number. No API key is required. Installed collections and bundled Nawawi are consulted before either online service. Collection numbering differs across datasets; Falah preserves supplied identifiers rather than removing letter suffixes.
+
+The library reports missing ayah text found during new or resumed translation/tafsir downloads. Quran.com tafsir downloads recover omitted grouped passages through the same resource's verse endpoint. Remaining upstream gaps are shown in the library. Previously installed resources gain coverage measurements when downloaded again; older Quran.com tafsirs offer **Update** after their catalog loads.
+
+The source adapters and exact-reference approach were informed by [AfzGit's Quran and Hadith Fetcher](https://github.com/AfzGit/Obsidian-Quran-Hadith-Fetcher). Falah handles Hadith Unlocked's nested offline export format separately from its live lookup format.
 
 The optional **Word meanings and grammar** pack combines word text, transliteration, and contextual English meanings from the [Quran.com API](https://api.quran.com) with morphology from the [Quranic Arabic Corpus](https://corpus.quran.com) (version 0.4, GPL). Installation downloads those public datasets and stores the normalized result inside the plugin's local data folder. Opening a word after installation is entirely offline.
 
@@ -46,6 +84,7 @@ npm run dev    # watch build
 npm test       # vitest
 npm run test:integration # rendered reader interaction smoke test
 npm run test:apis # live public resource API smoke tests
+npm run test:apis:all # every catalog resource, complete hadith collections, audio/word/Mushaf probes
 npm run lint   # eslint (obsidianmd community-review rules)
 npm run build  # typecheck + production bundle
 ```

@@ -45,6 +45,11 @@ function makeQuranDataSource(ioSeed: Record<string, string> = {}) {
 }
 
 describe("QuranDataSource.getSurah", () => {
+	it("returns grouped tafsir when the requested range starts inside its coverage", async () => {
+		const group = { ayahKey: "1:1", ayahKeys: ["1:1", "1:2", "1:3"], text: "Group" };
+		const { source } = makeQuranDataSource({ "qdata/tafsirs/grouped/001.json": JSON.stringify([group]) });
+		expect(await source.getTafsir("grouped", "1:2", "1:3")).toEqual([group]);
+	});
 	it("returns bundled surah metadata", async () => {
 		const { source } = makeQuranDataSource();
 		expect((await source.getSurah(1)).nameEnglish).toBe("The Opening");

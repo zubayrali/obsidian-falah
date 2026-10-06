@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CORE_CLEARQURAN_ID, CORE_INDOPAK_ID, CORE_UTHMANI_ID, CoreLoader } from "./core";
+import { CORE_CLEARQURAN_ID, CORE_INDOPAK_ID, CORE_UTHMANI_ID, CoreLoader, defaultCoreImportMap } from "./core";
 import type { CoreImportMap } from "./core";
 import type { Ayah, Surah, TranslationVerse } from "./schema";
 import type { QuranNav } from "../nav/schema";
@@ -37,6 +37,17 @@ function makeImports(): CoreImportMap {
 }
 
 describe("CoreLoader", () => {
+	it("ships complete bundled scripts and translation with every canonical ayah key", async () => {
+		const loader = new CoreLoader(defaultCoreImportMap);
+		const surahs = await loader.getSurahs();
+		expect(surahs).toHaveLength(114);
+		const expected = surahs.flatMap((s) => Array.from({ length: s.ayahCount }, (_, i) => `${s.number}:${i + 1}`));
+		expect(expected).toHaveLength(6236);
+		for (const rows of [await loader.getScript("uthmani"), await loader.getScript("indopak"), await loader.getClearQuranTranslation()]) {
+			expect(rows.map((row) => row.ayahKey)).toEqual(expected);
+			expect(rows.every((row) => row.text.trim().length > 0)).toBe(true);
+		}
+	});
 	it("does not import anything until first use", () => {
 		const imports = makeImports();
 		new CoreLoader(imports);

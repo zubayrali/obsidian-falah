@@ -1,4 +1,4 @@
-import { PluginSettingTab, Setting, setIcon } from "obsidian";
+import { PluginSettingTab, setIcon } from "obsidian";
 import type FalahPlugin from "./main";
 import type { ResourceDescriptor } from "./data/schema";
 import { errMsg } from "./providers";
@@ -8,7 +8,8 @@ import { isPluginEnabled } from "./api";
 import { renderDisplayZone, renderReaderZone } from "./settings/reader-zone";
 import { LibraryZone } from "./settings/library-zone";
 import { renderAdvancedZone } from "./settings/advanced-zone";
-import { setSettingsSectionSearchState } from "./settings/ui";
+import { createSettingsSection } from "./settings/ui";
+import { filterSettingsSections } from "./settings/search";
 
 /** The Tadabbur companion — reflection/journaling built on Falah's public API. */
 const TADABBUR_PLUGIN_ID = "falah-tadabbur";
@@ -45,7 +46,7 @@ export class FalahSettingTab extends PluginSettingTab {
 
 	/** Reopening Settings starts on Reader; zone-triggered re-renders retain the
 	 * current tab because Obsidian does not call hide() for those. */
-	hide(): void {
+		hide(): void {
 		this.renderEpoch += 1;
 		this.activeTab = "reader";
 	}
@@ -70,7 +71,6 @@ export class FalahSettingTab extends PluginSettingTab {
 		}
 		if (epoch !== this.renderEpoch) return;
 
-		this.renderCompanionZone(containerEl);
 		const shell = containerEl.createDiv({ cls: "falah-settings-shell" });
 		const topbar = shell.createDiv({ cls: "falah-settings-topbar" });
 		const nav = topbar.createDiv({
@@ -84,6 +84,7 @@ export class FalahSettingTab extends PluginSettingTab {
 		});
 		search.placeholder = t().setSearchPlaceholder;
 		search.value = this.filterQuery;
+		search.hidden = this.activeTab === "library";
 		const contentId = `falah-settings-panel-${this.activeTab}`;
 		const content = shell.createDiv({
 			cls: "falah-settings-content",
@@ -101,6 +102,7 @@ export class FalahSettingTab extends PluginSettingTab {
 				cls: `falah-settings-nav-item${selected ? " is-active" : ""}`,
 				attr: {
 					role: "tab",
+					id: `falah-settings-tab-${tab.id}`,
 					"aria-selected": String(selected),
 					"aria-controls": contentId,
 					tabindex: selected ? "0" : "-1",
@@ -134,6 +136,7 @@ export class FalahSettingTab extends PluginSettingTab {
 				});
 			};
 		}
+		content.setAttr("aria-labelledby", `falah-settings-tab-${this.activeTab}`);
 
 		if (this.activeTab === "reader") {
 			renderDisplayZone(this.plugin, content, resources, () => this.render());
@@ -142,15 +145,12 @@ export class FalahSettingTab extends PluginSettingTab {
 			this.libraryZone.render(content, resources);
 		} else {
 			renderAdvancedZone(this.plugin, content);
+			this.renderCompanionZone(content);
 		}
 
 		const applyFilter = () => {
 			const query = this.filterQuery.trim().toLocaleLowerCase();
-			for (const section of Array.from(content.querySelectorAll<HTMLDetailsElement>(".falah-settings-section"))) {
-				const matches = !query || (section.textContent ?? "").toLocaleLowerCase().includes(query);
-				section.hidden = !matches;
-				setSettingsSectionSearchState(section, Boolean(query), matches);
-			}
+			filterSettingsSections(content, query);
 			content.querySelector<HTMLElement>(".falah-settings-page-intro")?.toggle(!query);
 			content.querySelector<HTMLElement>(".falah-settings-empty-search")?.remove();
 			if (query && !content.querySelector(".falah-settings-section:not([hidden])")) {
@@ -168,8 +168,8 @@ export class FalahSettingTab extends PluginSettingTab {
 	private renderCompanionZone(containerEl: HTMLElement): void {
 		if (isPluginEnabled(this.app, TADABBUR_PLUGIN_ID)) return;
 
-		new Setting(containerEl).setName(t().setHeadingCompanion).setHeading();
-		const box = containerEl.createDiv({ cls: "falah-companion" });
+		const section = createSettingsSection(containerEl, { id: "advanced-companion", title: t().setHeadingCompanion, description: t().libraryCompanionDesc, icon: "notebook-pen" });
+		const box = section.createDiv({ cls: "falah-companion" });
 		box.createDiv({ cls: "falah-companion-title", text: t().libraryCompanionTitle });
 		box.createDiv({ cls: "falah-companion-desc", text: t().libraryCompanionDesc });
 		const link = box.createEl("a", {

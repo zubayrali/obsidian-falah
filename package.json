@@ -1,6 +1,6 @@
 {
 	"name": "falah-obsidian",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Islamic writing features for Obsidian's native Markdown editor",
 	"main": "main.js",
 	"type": "module",
@@ -13,6 +13,7 @@
 		"test": "vitest run",
 		"test:integration": "vitest run src/qcf/view.integration.test.ts",
 		"test:apis": "node scripts/check-resource-apis.mjs",
+		"test:apis:all": "node scripts/audit-resource-sources.mjs",
 		"validate:release": "node scripts/validate-release.mjs",
 		"check": "npm run validate:release && npm run lint && npm test && npm run build"
 	},

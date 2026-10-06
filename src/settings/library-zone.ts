@@ -1,9 +1,11 @@
 import { Setting } from "obsidian";
+import { LanguagePicker } from "./language-picker";
 import type FalahPlugin from "../main";
 import type { DownloadSourceId, ResourceDescriptor } from "../data/schema";
 import { categoryForType } from "../data/store";
 import { scanImportsFolder } from "../data/imports";
 import { downloadResource } from "../data/download";
+import { resourceMissingAyahs } from "../data/coverage";
 import { errMsg } from "../providers";
 import { logMessage } from "../log";
 import { t } from "../i18n";
@@ -21,13 +23,14 @@ import {
 	WORD_ANALYSIS_RESOURCE_ID,
 } from "../word-by-word/download";
 import { RecitationLibraryZone } from "./recitation-library";
-import { createSettingsPageIntro, createSettingsSection, createSettingsSubheading } from "./ui";
+import { createSettingsPageIntro, createSettingsSection } from "./ui";
+import { mergeQuranResources } from "./library-items";
 import { confirmAction } from "./confirm";
 
 type ResourceType = "translation" | "tafsir";
 
 interface BrowseState {
-	source: DownloadSourceId;
+	source: DownloadSourceId | "";
 	type: ResourceType;
 	catalog: ResourceDescriptor[];
 	updateIds: Set<string>;
@@ -41,12 +44,15 @@ interface BrowseState {
 }
 
 export class LibraryZone {
+	private category: "quran" | "hadith" | "audio" | "packs" | "import" = "quran";
+	private catalogEpoch = 0;
+	private redrawCatalog?: () => void;
 	private busy = false;
 	private activeDownload?: AbortController;
 	private readonly recitations: RecitationLibraryZone;
 	private readonly hadith: HadithLibraryZone;
 	private readonly browse: BrowseState = {
-		source: "fawazahmed0",
+		source: "",
 		type: "translation",
 		catalog: [],
 		updateIds: new Set(),
@@ -69,47 +75,71 @@ export class LibraryZone {
 
 	render(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
 		createSettingsPageIntro(containerEl, t().setLibraryPageTitle, t().setLibraryPageDesc);
-		const recitations = createSettingsSection(containerEl, {
-			id: "library-recitations",
-			title: t().libraryRecitationsHeading,
-			description: t().libraryRecitationsDesc,
-			icon: "headphones",
-			open: true,
-		});
-		this.recitations.render(recitations);
-		const essentials = createSettingsSection(containerEl, {
-			id: "library-reading-packs",
-			title: t().setLibraryReadingPacksHeading,
-			description: t().setLibraryReadingPacksDesc,
-			icon: "package-open",
-		});
-		this.renderMushafInstaller(essentials);
-		new Setting(essentials).setName(t().libraryWordPackHeading).setDesc(t().libraryWordPackDesc);
+		const categories = [
+			{ id: "quran" as const, label: t().setLibraryCategoryQuran },
+			{ id: "hadith" as const, label: t().setLibraryCategoryHadith },
+			{ id: "audio" as const, label: t().setLibraryCategoryAudio },
+			{ id: "packs" as const, label: t().setLibraryCategoryPacks },
+			{ id: "import" as const, label: t().setLibraryCategoryImport },
+		];
+		const nav = containerEl.createDiv({ cls: "falah-library-categories", attr: { role: "group", "aria-label": t().setLibraryPageTitle } });
+		for (const category of categories) {
+			const button = nav.createEl("button", {
+				text: category.label,
+				cls: this.category === category.id ? "is-active" : "",
+				attr: { type: "button", "aria-pressed": String(this.category === category.id) },
+			});
+			button.onclick = () => {
+				const root = containerEl.getRootNode() as Document | ShadowRoot;
+				this.category = category.id;
+				void this.rerender().then(() => {
+					root.querySelector<HTMLButtonElement>('.falah-library-categories [aria-pressed="true"]')?.focus();
+				});
+			};
+		}
 		const installedById = new Map(resources.map((resource) => [resource.id, resource]));
-		this.renderWordAnalysisInstaller(essentials, installedById.get(WORD_ANALYSIS_RESOURCE_ID));
-		const quranResources = createSettingsSection(containerEl, {
-			id: "library-quran-resources",
-			title: t().setLibraryQuranResourcesHeading,
-			description: t().setLibraryQuranResourcesDesc,
-			icon: "languages",
-		});
-		this.renderBrowser(quranResources, installedById);
-		createSettingsSubheading(quranResources, t().setHeadingInstalledResources);
-		this.renderInstalledResources(quranResources, resources);
-		const hadith = createSettingsSection(containerEl, {
-			id: "library-hadith",
-			title: t().setHeadingHadithCollections,
-			description: t().setLibraryHadithDesc,
-			icon: "library-big",
-		});
-		this.hadith.render(hadith);
-		const manual = createSettingsSection(containerEl, {
-			id: "library-manual-import",
-			title: t().setHeadingManualImport,
-			description: t().setLibraryManualImportDesc,
-			icon: "folder-input",
-		});
-		this.renderManualImport(manual);
+		if (this.category === "audio") {
+			const recitations = createSettingsSection(containerEl, {
+				id: "library-recitations",
+				title: t().libraryRecitationsHeading,
+				description: t().libraryRecitationsDesc,
+				icon: "headphones",
+			});
+			this.recitations.render(recitations);
+		} else if (this.category === "packs") {
+			const essentials = createSettingsSection(containerEl, {
+				id: "library-reading-packs",
+				title: t().setLibraryReadingPacksHeading,
+				description: t().setLibraryReadingPacksDesc,
+				icon: "package-open",
+			});
+			this.renderMushafInstaller(essentials);
+			this.renderWordAnalysisInstaller(essentials, installedById.get(WORD_ANALYSIS_RESOURCE_ID));
+		} else if (this.category === "quran") {
+			const quranResources = createSettingsSection(containerEl, {
+				id: "library-quran-resources",
+				title: t().setLibraryQuranResourcesHeading,
+				description: t().setLibraryQuranResourcesDesc,
+				icon: "languages",
+			});
+			this.renderBrowser(quranResources, installedById);
+		} else if (this.category === "hadith") {
+			const hadith = createSettingsSection(containerEl, {
+				id: "library-hadith",
+				title: t().setHeadingHadithCollections,
+				description: t().setLibraryHadithDesc,
+				icon: "library-big",
+			});
+			this.hadith.render(hadith);
+		} else {
+			const manual = createSettingsSection(containerEl, {
+				id: "library-manual-import",
+				title: t().setHeadingManualImport,
+				description: t().setLibraryManualImportDesc,
+				icon: "folder-input",
+			});
+			this.renderManualImport(manual);
+		}
 	}
 
 	private renderMushafInstaller(containerEl: HTMLElement): void {
@@ -225,13 +255,14 @@ export class LibraryZone {
 		searchInput.placeholder = t().libraryResourceSearchPlaceholder;
 		searchInput.value = this.browse.search;
 		const languageSelect = createField(t().libraryResourceLanguageLabel)
-			.createEl("select", { cls: "dropdown falah-lang-select" });
+			.createEl("button", { cls: "falah-language-picker", attr: { type: "button", "aria-haspopup": "dialog" } });
 		const typeSelect = createField(t().libraryResourceTypeLabel).createEl("select", { cls: "dropdown" });
 		typeSelect.createEl("option", { value: "translation", text: t().libraryTypeTranslationOption });
 		typeSelect.createEl("option", { value: "tafsir", text: t().libraryTypeTafsirOption });
 		typeSelect.value = this.browse.type;
 		const sourceSelect = createField(t().libraryResourceSourceLabel).createEl("select", { cls: "dropdown" });
-		for (const id of ["fawazahmed0", "alquran-cloud", "qul"] as DownloadSourceId[]) {
+		sourceSelect.createEl("option", { value: "", text: t().libraryAllSources });
+		for (const id of Object.keys(this.plugin.downloadSources) as DownloadSourceId[]) {
 			sourceSelect.createEl("option", { value: id, text: SOURCE_LABELS[id] });
 		}
 		sourceSelect.value = this.browse.source;
@@ -242,19 +273,17 @@ export class LibraryZone {
 		const progressEl = containerEl.createDiv({ cls: "falah-download-progress", attr: { "aria-live": "polite" } });
 
 		const rebuildLanguageOptions = () => {
-			languageSelect.empty();
-			languageSelect.createEl("option", { value: "", text: t().libraryAllLanguagesOption });
-			for (const { value, name } of distinctLanguages(this.browse.catalog)) {
-				languageSelect.createEl("option", { value, text: name });
-			}
-			languageSelect.value = this.browse.language;
+			languageSelect.setText(distinctLanguages(mergedResources()).find((item) => item.value === this.browse.language)?.name ?? t().libraryAllLanguagesOption);
+			languageSelect.setAttr("aria-label", `${t().libraryResourceLanguageLabel}: ${languageSelect.textContent}`);
 		};
 
+		const mergedResources = () => mergeQuranResources(this.browse.catalog, [...installedById.values()])
+			.filter((resource) => resource.type === this.browse.type && (!this.browse.source || resource.source === this.browse.source));
 		const renderList = () => {
 			listEl.empty();
 			overview.empty();
-			const installedCount = [...installedById.values()].filter((resource) =>
-				resource.type === "translation" || resource.type === "tafsir").length;
+				const installedCount = [...installedById.values()].filter((resource) =>
+					resource.tier !== "bundled" && resource.cardinality !== "per-word" && (resource.type === "translation" || resource.type === "tafsir")).length;
 			overview.createSpan({
 				text: t().libraryQuranInstalledSummary(installedCount, this.browse.updateIds.size),
 				cls: "falah-library-count",
@@ -264,13 +293,12 @@ export class LibraryZone {
 				loading.setAttr("role", "status");
 				loading.createSpan({ cls: "falah-library-spinner" });
 				loading.createSpan({ text: t().libraryLoading });
-				return;
 			}
 			if (!this.browse.fetched) {
 				listEl.createEl("p", { text: t().libraryPickSourcePrompt, cls: "falah-muted" });
 				return;
 			}
-			const filtered = filterCatalog(this.browse.catalog, {
+			const filtered = filterCatalog(mergedResources(), {
 				search: this.browse.search,
 				language: this.browse.language,
 			});
@@ -306,32 +334,33 @@ export class LibraryZone {
 		};
 
 		const fetchCatalog = async (force: boolean) => {
+			const epoch = ++this.catalogEpoch;
+			const selection = this.browse.source;
+			const type = this.browse.type;
 			this.browse.loading = true;
 			this.browse.fetched = true;
 			this.browse.error = "";
 			refreshButton.disabled = true;
 			renderList();
 			try {
-				const source = this.plugin.downloadSources[this.browse.source];
-				const result = await this.plugin.registry.getCatalog(
-					this.browse.source,
-					this.browse.type,
-					() => source.listCatalog(this.browse.type),
-					{ force },
-				);
-				this.browse.catalog = result.resources;
-				this.browse.stale = result.stale;
-				this.browse.updateIds = new Set(await this.plugin.registry.updatesAvailable(result.resources));
+				const ids = selection ? [selection] : Object.keys(this.plugin.downloadSources) as DownloadSourceId[];
+				const results = await Promise.allSettled(ids.map((id) => this.plugin.registry.getCatalog(id, type, () => this.plugin.downloadSources[id].listCatalog(type), { force })));
+				if (epoch !== this.catalogEpoch) return;
+				this.browse.catalog = results.flatMap((result) => result.status === "fulfilled" ? result.value.resources : []);
+				this.browse.stale = results.some((result) => result.status === "rejected" || result.value.stale);
+				this.browse.updateIds = new Set(await this.plugin.registry.updatesAvailable(this.browse.catalog));
 			} catch (error) {
+				if (epoch !== this.catalogEpoch) return;
 				this.browse.catalog = [];
 				this.browse.stale = false;
 				this.browse.error = errMsg(error);
 				logMessage(this.browse.error, "error");
 			} finally {
+				if (epoch === this.catalogEpoch) {
 				this.browse.loading = false;
 				refreshButton.disabled = false;
-				rebuildLanguageOptions();
-				renderList();
+				this.redrawCatalog?.();
+				}
 			}
 		};
 
@@ -340,10 +369,16 @@ export class LibraryZone {
 			this.browse.visibleLimit = 60;
 			renderList();
 		});
-		languageSelect.addEventListener("change", () => {
-			this.browse.language = languageSelect.value;
-			this.browse.visibleLimit = 60;
-			renderList();
+		languageSelect.addEventListener("click", () => {
+			new LanguagePicker(this.plugin.app, [
+				{ value: "", name: t().libraryAllLanguagesOption },
+				...distinctLanguages(mergedResources()),
+			], (value) => {
+				this.browse.language = value;
+				this.browse.visibleLimit = 60;
+				rebuildLanguageOptions();
+				renderList();
+			}, t().libraryResourceLanguageLabel).open();
 		});
 		typeSelect.addEventListener("change", () => {
 			this.browse.type = typeSelect.value as ResourceType;
@@ -359,29 +394,10 @@ export class LibraryZone {
 		});
 		refreshButton.addEventListener("click", () => void fetchCatalog(true));
 
+		this.redrawCatalog = () => { refreshButton.disabled = this.browse.loading; rebuildLanguageOptions(); renderList(); };
 		rebuildLanguageOptions();
 		if (this.browse.fetched) renderList();
 		else void fetchCatalog(false);
-	}
-
-	private renderInstalledResources(containerEl: HTMLElement, resources: ResourceDescriptor[]): void {
-		const installed = resources.filter((resource) => resource.tier !== "bundled");
-		if (!installed.length) {
-			containerEl.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
-		}
-		for (const resource of installed) {
-			const typeLabel = resource.cardinality === "per-word" ? t().libraryWordAnalysisName : resource.type;
-			new Setting(containerEl)
-				.setName(resource.name)
-				.setDesc(
-					`${typeLabel} · ${TIER_LABELS[resource.tier]}` +
-					(resource.source ? ` · ${SOURCE_LABELS[resource.source]}` : ""),
-				)
-				.addButton((button) => button
-					.setButtonText(t().libraryRemoveButton)
-					.setWarning()
-					.onClick(() => void this.removeResource(resource)));
-		}
 	}
 
 	private renderManualImport(containerEl: HTMLElement): void {
@@ -450,7 +466,9 @@ export class LibraryZone {
 		const isUpdate = this.browse.updateIds.has(descriptor.id);
 		const isComplete = installed?.installedSurahs?.length === 114;
 		const isPartial = !!installed && !isComplete;
-		const details = [languageDisplayName(descriptor.language), SOURCE_LABELS[this.browse.source]];
+		const details = [languageDisplayName(descriptor.language), descriptor.source ? SOURCE_LABELS[descriptor.source] : TIER_LABELS[descriptor.tier]];
+		const missing = resourceMissingAyahs(installed?.meta);
+		if (missing) details.push(t().libraryCoverageMissing(missing));
 		if (isUpdate) details.push(t().libraryResourceUpdateStatus);
 		else if (isPartial) details.push(t().libraryResourcePartialStatus(installed.installedSurahs?.length ?? 0, 114));
 		else if (isComplete) details.push(t().libraryInstalledTooltip);
@@ -458,14 +476,13 @@ export class LibraryZone {
 			.setName(descriptor.name)
 			.setDesc(details.join(" · "));
 
-		if (isComplete && !isUpdate) {
+		if (installed && ((isComplete && !isUpdate) || !descriptor.source)) {
 			setting.addExtraButton((button) => button
 				.setIcon("checkmark")
 				.setTooltip(t().libraryInstalledTooltip)
 				.setDisabled(true));
 			setting.addButton((button) => button
 				.setButtonText(t().libraryRemoveButton)
-				.setWarning()
 				.onClick(() => void this.removeResource(descriptor)));
 			return;
 		}
@@ -480,7 +497,8 @@ export class LibraryZone {
 					logMessage(t().noticeDownloadOrImportInProgress, "warn");
 					return;
 				}
-				const source = this.plugin.downloadSources[this.browse.source];
+				const source = descriptor.source ? this.plugin.downloadSources[descriptor.source] : undefined;
+				if (!source) return;
 				const controller = new AbortController();
 				this.activeDownload = controller;
 				this.busy = true;

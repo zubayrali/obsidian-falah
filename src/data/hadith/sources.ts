@@ -2,7 +2,7 @@
 // HadithCollection. Network contracts are unit-tested through injected
 // transports. fetchCollection is cancellable between transport requests.
 
-import { DataError, NetworkError } from "../schema";
+import { DataError, NetworkError, SchemaError } from "../schema";
 import type { FetchJson } from "../download";
 import {
 	normalizeAhmedBaset,
@@ -78,7 +78,7 @@ export const AHMEDBASET_BOOKS: HadithCatalogEntry[] = [
 	["riyad_assalihin", "Riyad as-Salihin"], ["adab_almufrad", "Al-Adab Al-Mufrad"],
 	["bulugh_almaram", "Bulugh al-Maram"], ["shamail_muhammadiyah", "Shama'il Muhammadiyah"],
 	["mishkat_almasabih", "Mishkat al-Masabih"],
-].map(([collection, name]) => ({ source: "ahmedbaset", collection, name, languages: ["ara", "eng"] }));
+].map(([collection, name]) => ({ source: "ahmedbaset", collection, name, languages: collection === "darimi" ? ["ara"] : ["ara", "eng"] }));
 
 export class AhmedBasetHadithSource implements HadithSource {
 	readonly id = "ahmedbaset";
@@ -86,9 +86,12 @@ export class AhmedBasetHadithSource implements HadithSource {
 		return AHMEDBASET_BOOKS;
 	}
 	async fetchCollection(collection: string, language: string, fetchJson: FetchJson, signal?: AbortSignal): Promise<HadithCollection> {
+		if (collection === "darimi" && language && language !== "ara") {
+			throw new SchemaError("AhmedBaset Darimi is available in Arabic only");
+		}
 		const path = AHMEDBASET_PATHS[collection] ?? `other_books/${collection}.json`;
 		const json = await fetchJsonOrThrow(fetchJson, `${AHMEDBASET_RAW}/${path}`, signal);
-		return normalizeAhmedBaset(json, { collection, language: language || "eng" });
+		return normalizeAhmedBaset(json, { collection, language: language || (collection === "darimi" ? "ara" : "eng") });
 	}
 }
 
@@ -102,7 +105,7 @@ export class SunnahComHadithSource implements HadithSource {
 		private authenticatedFetch?: AuthenticatedFetchJson,
 	) {}
 	private requireKey(): string {
-		const k = this.apiKey();
+		const k = this.apiKey().trim();
 		if (!k) throw new NetworkError("sunnah.com needs an API key — set it in Falah settings (request one at github.com/sunnah-com/api).");
 		return k;
 	}
@@ -111,17 +114,27 @@ export class SunnahComHadithSource implements HadithSource {
 		const transport = this.authenticatedFetch
 			? (url: string) => this.authenticatedFetch!(url, key)
 			: fetchJson;
-		const json = (await fetchJsonOrThrow(transport, `${SUNNAH_API}/collections?limit=50`)) as {
-			data?: { name?: string; collection?: { lang?: string; title?: string }[] }[];
-		};
-		return (json.data ?? [])
-			.filter((c) => typeof c.name === "string")
-			.map((c) => ({
-				source: "sunnah",
-				collection: c.name as string,
-				name: c.collection?.find((t) => t.lang === "en")?.title ?? (c.name as string),
-				languages: ["ara", "eng"],
-			}));
+		const entries: HadithCatalogEntry[] = [];
+		let page = 1;
+		for (;;) {
+			const json = (await fetchJsonOrThrow(transport, `${SUNNAH_API}/collections?limit=50${page === 1 ? "" : `&page=${page}`}`)) as {
+				data?: { name?: string; collection?: { lang?: string; title?: string }[] }[];
+				next?: unknown;
+			};
+			if (!Array.isArray(json.data)) throw new SchemaError("sunnah.com catalogue: missing data array");
+			entries.push(...json.data
+				.filter((c) => typeof c.name === "string")
+				.map((c) => ({
+					source: "sunnah",
+					collection: c.name as string,
+					name: c.collection?.find((t) => t.lang === "en")?.title ?? (c.name as string),
+					languages: ["ara", "eng"],
+				})));
+			if (json.next === null || json.next === undefined) break;
+			if (typeof json.next !== "number" || !Number.isInteger(json.next) || json.next <= page) throw new SchemaError("sunnah.com catalogue: invalid pagination");
+			page = json.next;
+		}
+		return entries;
 	}
 	async fetchCollection(collection: string, language: string, fetchJson: FetchJson, signal?: AbortSignal): Promise<HadithCollection> {
 		const key = this.requireKey();
@@ -130,15 +143,20 @@ export class SunnahComHadithSource implements HadithSource {
 			: fetchJson;
 		const all: unknown[] = [];
 		let name = collection;
-		for (let page = 1; page <= 200; page++) {
-			if (signal?.aborted) break;
-			const json = (await fetchJsonOrThrow(transport, `${SUNNAH_API}/collections/${collection}/hadiths?page=${page}&limit=100`, signal)) as {
-				data?: unknown[]; collection?: { name?: string };
+		let page = 1;
+		for (;;) {
+			signal?.throwIfAborted();
+			const json = (await fetchJsonOrThrow(transport, `${SUNNAH_API}/hadiths?collection=${encodeURIComponent(collection)}&page=${page}&limit=100`, signal)) as {
+				data?: unknown[]; collection?: { name?: string }; next?: unknown;
 			};
 			if (json.collection?.name) name = json.collection.name;
-			const data = Array.isArray(json.data) ? json.data : [];
+			if (!Array.isArray(json.data)) throw new SchemaError("sunnah.com hadiths: missing data array");
+			const data = json.data;
 			all.push(...data);
-			if (data.length < 100) break;
+			if (json.next === null || (json.next === undefined && data.length < 100)) break;
+			const next = json.next ?? page + 1;
+			if (typeof next !== "number" || !Number.isInteger(next) || next <= page) throw new SchemaError("sunnah.com hadiths: invalid pagination");
+			page = next;
 		}
 		return normalizeSunnah({ collection: { name }, hadiths: all }, { collection, language: language || "eng" });
 	}

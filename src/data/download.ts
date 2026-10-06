@@ -12,10 +12,12 @@ import {
 	normalizeQulCatalog,
 	normalizeQulRange,
 	normalizeQulTafsirRange,
+	normalizeQulTafsirAyah,
 } from "./normalize";
 import { categoryForType } from "./store";
 import type { DataStore } from "./store";
 import type { Registry } from "./registry";
+import { missingAyahCount } from "./coverage";
 
 export type FetchJson = (url: string) => Promise<unknown>;
 
@@ -136,22 +138,53 @@ export class QulSource implements DownloadSource {
 		return normalizeQulCatalog(
 			await fetchOrThrowNetwork(this.fetchJsonForCatalog, `${QURAN_COM_API}/resources/${path}`),
 			type
-		);
+		).map((desc) => desc.type === "tafsir" ? { ...desc, meta: { ...desc.meta, adapterRevision: "qul-groups-v2" } } : desc);
 	}
 
 	async fetchSurah(
 		desc: ResourceDescriptor,
 		surah: number,
-		_ayahCount: number,
+		ayahCount: number,
 		fetchJson: FetchJson
 	): Promise<TranslationVerse[] | TafsirVerse[]> {
 		if (!desc.sourceResourceId) throw new SchemaError(`${desc.id}: missing sourceResourceId`);
 		const url = desc.type === "translation"
 			? `${QURAN_COM_API}/quran/translations/${desc.sourceResourceId}?chapter_number=${surah}&fields=verse_key`
-			: `${QURAN_COM_API}/tafsirs/${desc.sourceResourceId}/by_chapter/${surah}`;
-		const json = await fetchOrThrowNetwork(fetchJson, url);
-		// Tafsir text is HTML while translations are plain-text records.
-		return desc.type === "tafsir" ? normalizeQulTafsirRange(json) : normalizeQulRange(json);
+			: `${QURAN_COM_API}/tafsirs/${desc.sourceResourceId}/by_chapter/${surah}?per_page=300`;
+		if (desc.type !== "tafsir") {
+			return normalizeQulRange(await fetchOrThrowNetwork(fetchJson, url));
+		}
+		// by_chapter defaults to ten verses per page, even for a whole chapter.
+		const verses: TafsirVerse[] = [];
+		let page = 1;
+		for (;;) {
+			const json = await fetchOrThrowNetwork(fetchJson, page === 1 ? url : `${url}&page=${page}`);
+			verses.push(...normalizeQulTafsirRange(json));
+			const next = (json as { pagination?: { next_page?: unknown } }).pagination?.next_page;
+			if (next === undefined || next === null) break;
+			if (typeof next !== "number" || !Number.isInteger(next) || next <= page) {
+				throw new SchemaError(`${desc.id}: invalid tafsir pagination`);
+			}
+			page = next;
+		}
+		const blocks = new Map(verses.map((v) => [v.ayahKey, v]));
+		const covered = new Set(verses.flatMap((v) => v.ayahKeys ?? [v.ayahKey]));
+		for (let ayah = 1; ayah <= ayahCount; ayah++) {
+			const key = `${surah}:${ayah}`;
+			if (covered.has(key)) continue;
+			let group: TafsirVerse;
+			try {
+				group = normalizeQulTafsirAyah(await fetchOrThrowNetwork(fetchJson, `${QURAN_COM_API}/tafsirs/${desc.sourceResourceId}/by_ayah/${key}`), key, desc.sourceResourceId);
+			} catch (error) {
+				if (error instanceof NetworkError) continue; // retain measured gaps when a targeted lookup is unavailable
+				throw error;
+			}
+			const keys = group.ayahKeys ?? [group.ayahKey];
+			missingAyahCount([group], surah, ayahCount); // validate group boundaries before saving it
+			for (const member of keys) { covered.add(member); blocks.delete(member); }
+			blocks.set(group.ayahKey, group);
+		}
+		return [...blocks.values()];
 	}
 }
 
@@ -178,6 +211,9 @@ export async function downloadResource(
 	const surahs = await deps.registry.core.getSurahs();
 	const category = categoryForType(desc.type);
 	const total = surahs.length;
+	const installed = (await deps.registry.listInstalled()).find((r) => r.id === desc.id);
+	const missingBySurah = { ...(installed?.meta?.missingAyahsBySurah as Record<string, number> | undefined) };
+	const installedDesc = { ...desc, meta: { ...installed?.meta, ...desc.meta, missingAyahsBySurah: missingBySurah } };
 	const bulk = source.fetchAllSurahs
 		? await source.fetchAllSurahs(desc, deps.fetchJson)
 		: undefined;
@@ -191,14 +227,15 @@ export async function downloadResource(
 		}
 		const verses = bulk?.get(surah.number)
 			?? await source.fetchSurah(desc, surah.number, surah.ayahCount, deps.fetchJson);
+		missingBySurah[String(surah.number)] = missingAyahCount(verses, surah.number, surah.ayahCount);
 		await deps.store.writeSurahFile(category, desc.id, surah.number, verses);
 		if (!options.replaceExisting) {
-			await deps.registry.recordSurahInstalled(desc, surah.number);
+			await deps.registry.recordSurahInstalled(installedDesc, surah.number);
 		}
 		done++;
 		onProgress?.({ surahsDone: done, surahsTotal: total });
 	}
 	if (options.replaceExisting && !signal?.aborted) {
-		await deps.registry.recordResourceInstalled(desc, surahs.map((surah) => surah.number));
+		await deps.registry.recordResourceInstalled(installedDesc, surahs.map((surah) => surah.number));
 	}
 }

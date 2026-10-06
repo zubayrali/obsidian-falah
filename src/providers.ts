@@ -4,13 +4,13 @@
 
 import { requestUrl } from "obsidian";
 import {
-	HADITH_COLLECTION_NAMES,
 	HadithRef,
 	QuranRef,
 	parseShorthand,
 	toLabel,
 } from "./ref";
 import type { HadithContent, VerseContent } from "./data/schema";
+import { NotFoundError } from "./data/schema";
 
 export interface QuranSearchResult {
 	ref: QuranRef;
@@ -41,7 +41,11 @@ export function quranExternalUrl(ref: QuranRef): string {
 	return `https://quran.com/${ref.surah}/${ref.ayah}`;
 }
 
-const SUNNAH_SLUGS: Record<string, string> = { nawawi: "nawawi40", qudsi: "qudsi40" };
+const SUNNAH_SLUGS: Record<string, string> = {
+	nawawi: "nawawi40", qudsi: "qudsi40", dehlawi: "shahwaliullah40", shahwaliullah: "shahwaliullah40",
+	riyad_assalihin: "riyadussalihin", adab_almufrad: "adab", bulugh_almaram: "bulugh",
+	shamail_muhammadiyah: "shamail", mishkat_almasabih: "mishkat", ahmed: "ahmad",
+};
 
 export function hadithExternalUrl(ref: HadithRef): string {
 	return `https://sunnah.com/${SUNNAH_SLUGS[ref.collection] ?? ref.collection}:${ref.number}`;
@@ -150,16 +154,17 @@ export class AlQuranCloudProvider implements QuranProvider {
 }
 
 const HADITH_CDN = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
+export const HADITH_CDN_COLLECTIONS = ["bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "malik", "nawawi", "qudsi", "dehlawi"];
 
 export class HadithCdnProvider implements HadithProvider {
 	async getHadith(ref: HadithRef): Promise<HadithContent> {
-		if (!(ref.collection in HADITH_COLLECTION_NAMES)) {
+		if (!HADITH_CDN_COLLECTIONS.includes(ref.collection)) {
 			throw new Error(
-				`Unknown collection "${ref.collection}". Supported: ${Object.keys(HADITH_COLLECTION_NAMES).join(", ")}`
+				`Unknown collection "${ref.collection}". Supported: ${HADITH_CDN_COLLECTIONS.join(", ")}`
 			);
 		}
-		// ponytail: the CDN indexes plain numbers; letter-suffixed refs (muslim:8a) fall back to the numeric part
-		const num = ref.number.replace(/[a-z]$/, "");
+		if (!/^\d+$/.test(ref.number)) throw new NotFoundError("The hadith CDN does not support letter-suffixed references");
+		const num = ref.number;
 		const [eng, ara] = await Promise.all([
 			this.fetchOne(`eng-${ref.collection}`, num),
 			this.fetchOne(`ara-${ref.collection}`, num),
@@ -187,7 +192,7 @@ export class HadithCdnProvider implements HadithProvider {
 			hadiths?: Array<{ text?: string; grades?: Array<{ name?: string; grade?: string }> }>;
 		};
 		const hadith = json?.hadiths?.[0];
-		if (!hadith) return null;
+		if (!hadith || !hadith.text?.trim()) return null;
 		return { hadith, name: json?.metadata?.name };
 	}
 
@@ -199,4 +204,3 @@ export class HadithCdnProvider implements HadithProvider {
 		return [];
 	}
 }
-

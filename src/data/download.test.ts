@@ -78,6 +78,13 @@ describe("Fawazahmed0Source", () => {
 });
 
 describe("AlQuranCloudSource", () => {
+	it("does not offer audio editions as downloadable text translations", async () => {
+		const source = new AlQuranCloudSource(async () => ({ code: 200, data: [
+			{ identifier: "ar.minshawi", type: "translation", format: "audio", englishName: "Minshawi" },
+			{ identifier: "en.sahih", type: "translation", format: "text", englishName: "Sahih", language: "en" },
+		] }));
+		expect((await source.listCatalog("translation")).map((d) => d.sourceResourceId)).toEqual(["en.sahih"]);
+	});
 	it("listCatalog requests /edition and filters by requested type", async () => {
 		const requested: string[] = [];
 		const fetchJson = async (url: string) => {
@@ -156,6 +163,47 @@ describe("AlQuranCloudSource", () => {
 });
 
 describe("QulSource", () => {
+	it("recovers omitted verses from the same resource's grouped passage", async () => {
+		const urls: string[] = [];
+		const desc = { id: "qul-164", sourceResourceId: "164", type: "tafsir" as const, name: "Tafsir", language: "en", tier: "downloaded" as const };
+		const rows = await new QulSource(async () => ({})).fetchSurah(desc, 2, 3, async (url) => {
+			urls.push(url);
+			return urls.length === 1
+				? { tafsirs: [{ verse_key: "2:1", text: "Partial" }] }
+				: { tafsir: { resource_id: 164, verses: { "2:1": {}, "2:2": {}, "2:3": {} }, text: "<p>Group</p>" } };
+		});
+		expect(urls).toHaveLength(2);
+		expect(urls[1]).toContain("/164/by_ayah/2:2");
+		expect(rows).toEqual([{ ayahKey: "2:1", ayahKeys: ["2:1", "2:2", "2:3"], text: "Group" }]);
+	});
+
+	it("retains measured gaps when a targeted passage is unavailable", async () => {
+		const desc = { id: "qul-164", sourceResourceId: "164", type: "tafsir" as const, name: "Tafsir", language: "en", tier: "downloaded" as const };
+		const rows = await new QulSource(async () => ({})).fetchSurah(desc, 2, 2, async (url) => {
+			if (url.includes("by_ayah")) throw new Error("HTTP 404");
+			return { tafsirs: [{ verse_key: "2:1", text: "Available" }] };
+		});
+		expect(rows).toEqual([{ ayahKey: "2:1", text: "Available" }]);
+	});
+	it("fetches every tafsir page before returning a chapter", async () => {
+		const urls: string[] = [];
+		const desc = { id: "qul-169", sourceResourceId: "169", type: "tafsir" as const, name: "Ibn Kathir", language: "en", tier: "downloaded" as const };
+		const rows = await new QulSource(async () => ({})).fetchSurah(desc, 2, 2, async (url) => {
+			urls.push(url);
+			const page = urls.length;
+			return { tafsirs: [{ verse_key: `2:${page}`, text: `<p>Page ${page}</p>` }], pagination: { next_page: page === 1 ? 2 : null } };
+		});
+		expect(urls).toEqual(["https://api.quran.com/api/v4/tafsirs/169/by_chapter/2?per_page=300", "https://api.quran.com/api/v4/tafsirs/169/by_chapter/2?per_page=300&page=2"]);
+		expect(rows.map((row) => row.ayahKey)).toEqual(["2:1", "2:2"]);
+	});
+
+	it("rejects a repeating tafsir page instead of looping forever", async () => {
+		const desc = { id: "qul-169", sourceResourceId: "169", type: "tafsir" as const, name: "Ibn Kathir", language: "en", tier: "downloaded" as const };
+		await expect(new QulSource(async () => ({})).fetchSurah(desc, 2, 286, async () => ({
+			tafsirs: [{ verse_key: "2:1", text: "x" }], pagination: { next_page: 1 },
+		}))).rejects.toThrow(SchemaError);
+	});
+
 	it("listCatalog requests Quran.com resources/translations for type translation", async () => {
 		const requested: string[] = [];
 		const fetchJson = async (url: string) => {
@@ -217,11 +265,11 @@ describe("QulSource", () => {
 			source: "qul" as const,
 			sourceResourceId: "169",
 		};
-		const verses = await source.fetchSurah(desc, 1, 7, async (url) => {
+		const verses = await source.fetchSurah(desc, 1, 1, async (url) => {
 			requested.push(url);
 			return { tafsirs: [{ verse_key: "1:1", text: "<p>Commentary</p>" }] };
 		});
-		expect(requested).toEqual(["https://api.quran.com/api/v4/tafsirs/169/by_chapter/1"]);
+		expect(requested).toEqual(["https://api.quran.com/api/v4/tafsirs/169/by_chapter/1?per_page=300"]);
 		expect(verses).toEqual([{ ayahKey: "1:1", text: "Commentary" }]);
 	});
 

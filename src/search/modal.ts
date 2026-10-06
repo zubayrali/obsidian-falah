@@ -1,6 +1,7 @@
 import { SuggestModal, type App } from "obsidian";
 import type { OfflineQuranSearchIndex } from "./index";
 import type { SearchHit, SearchScope } from "./types";
+import { languageDisplayName } from "../settings-helpers";
 
 export interface OfflineSearchModalOptions {
 	app: App;
@@ -23,13 +24,13 @@ export class OfflineSearchModal extends SuggestModal<SearchHit> {
 		await super.onOpen();
 		const editions = this.options.index.editions();
 		const controls = createDiv({ cls: "falah-search-scope" });
-		const edition = controls.createEl("select", { cls: "dropdown" });
+		const edition = controls.createEl("select", { cls: "dropdown", attr: { "aria-label": "Edition" } });
 		edition.createEl("option", { value: "", text: "All installed editions" });
 		for (const item of editions) edition.createEl("option", { value: item.id, text: item.name });
-		const language = controls.createEl("select", { cls: "dropdown" });
+		const language = controls.createEl("select", { cls: "dropdown", attr: { "aria-label": "Language" } });
 		language.createEl("option", { value: "", text: "All languages" });
 		for (const lang of [...new Set(editions.map((item) => item.language).filter((item) => item !== undefined))].sort()) {
-			language.createEl("option", { value: lang, text: lang });
+			language.createEl("option", { value: lang, text: languageDisplayName(lang) });
 		}
 		const refresh = () => {
 			this.searchScope = {

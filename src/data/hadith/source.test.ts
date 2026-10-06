@@ -29,6 +29,24 @@ function makeResolver(installed?: HadithCollection) {
 }
 
 describe("HadithResolver.getHadith", () => {
+	it("does not resolve a letter suffix from a numeric-only installed record", async () => {
+		const { resolver, live, seed } = makeResolver({ ...bukhari, collection: "muslim", hadiths: [{ number: 8, translation: "Numeric 8" }] });
+		await seed();
+		expect((await resolver.getHadith({ kind: "hadith", collection: "muslim", number: "8a" })).translation).toBe("LIVE");
+		expect(live.getHadith).toHaveBeenCalledOnce();
+	});
+	it("resolves exact identifiers from an installed Unlocked collection", async () => {
+		const { resolver, live, seed } = makeResolver({ ...bukhari, source: "hadith-unlocked", collection: "muslim", hadiths: [{ number: 1, referenceNumber: "8a", translation: "Correct" }, { number: 2, referenceNumber: "8b", translation: "Other" }] });
+		await seed();
+		expect((await resolver.getHadith({ kind: "hadith", collection: "muslim", number: "8a" })).translation).toBe("Correct");
+		expect(live.getHadith).not.toHaveBeenCalled();
+	});
+	it("continues to the next source when an installed record is an empty placeholder", async () => {
+		const { resolver, live, seed } = makeResolver({ ...bukhari, hadiths: [{ number: 1, arabic: " ", translation: "" }] });
+		await seed();
+		expect((await resolver.getHadith({ kind: "hadith", collection: "bukhari", number: "1" })).translation).toBe("LIVE");
+		expect(live.getHadith).toHaveBeenCalledOnce();
+	});
 	it("resolves from an installed collection first (with narrator + grades)", async () => {
 		const { resolver, live, seed } = makeResolver(bukhari);
 		await seed();

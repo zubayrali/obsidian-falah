@@ -20,7 +20,6 @@ export function renderDisplayZone(
 		title: t().setReaderDefaultsHeading,
 		description: t().setReaderDefaultsDesc,
 		icon: "book-open-text",
-		open: true,
 	});
 
 	new Setting(defaults).setName(t().setReciterName).setDesc(t().setReciterDesc).addDropdown((dropdown) => {

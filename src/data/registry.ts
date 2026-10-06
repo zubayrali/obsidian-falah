@@ -61,6 +61,7 @@ export class Registry {
 	// and tafsirs, so a source-only key would let one type's fetch overwrite the
 	// other's cache (Fix E).
 	private catalogPath(source: DownloadSourceId, type: ResourceType): string {
+		if (source === "qul" && type === "tafsir") return `${this.root}/catalog-qul-tafsir-groups-v2.json`;
 		return `${this.root}/catalog-${source}-${type}.json`;
 	}
 
@@ -255,7 +256,8 @@ export class Registry {
 		const out: string[] = [];
 		for (const c of catalog) {
 			const installed = index.resources[c.id];
-			if (installed && c.version && installed.version && c.version !== installed.version) {
+			if (installed && ((c.version && installed.version && c.version !== installed.version) ||
+				(c.meta?.adapterRevision && c.meta.adapterRevision !== installed.meta?.adapterRevision))) {
 				out.push(c.id);
 			}
 		}

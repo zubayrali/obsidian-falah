@@ -6,7 +6,8 @@ import { errMsg } from "../providers";
 import { logMessage } from "../log";
 import { t } from "../i18n";
 import { confirmAction } from "./confirm";
-import { createSettingsSubheading } from "./ui";
+import { mergeHadithCollections } from "./library-items";
+import { languageDisplayName } from "../settings-helpers";
 
 function sourceLabel(id: string): string {
 	const labels: Record<string, string> = {
@@ -14,6 +15,7 @@ function sourceLabel(id: string): string {
 		ahmedbaset: t().libraryHadithSourceAhmedBaset,
 		sunnah: t().libraryHadithSourceSunnah,
 		mhashim6: t().libraryHadithSourceMhashim,
+		"hadith-unlocked": "Hadith Unlocked",
 	};
 	return labels[id] ?? id;
 }
@@ -23,7 +25,7 @@ function resourceId(entry: HadithCatalogEntry, language: string): string {
 }
 
 export class HadithLibraryZone {
-	private sourceId = "fawazahmed0";
+	private sourceId = "";
 	private search = "";
 	private catalog: HadithCatalogEntry[] = [];
 	private stale = false;
@@ -31,6 +33,8 @@ export class HadithLibraryZone {
 	private loading = false;
 	private busy = false;
 	private activeDownload?: AbortController;
+	private catalogEpoch = 0;
+	private redrawCatalog?: () => Promise<void>;
 
 	constructor(
 		private readonly plugin: FalahPlugin,
@@ -44,11 +48,12 @@ export class HadithLibraryZone {
 		const sourceField = filters.createEl("label", { cls: "falah-library-field" });
 		sourceField.createSpan({ text: t().libraryHadithSourceLabel, cls: "falah-library-field-label" });
 		const sourceSelect = sourceField.createEl("select", { cls: "dropdown" });
+		sourceSelect.createEl("option", { value: "", text: t().libraryAllSources });
 		for (const source of this.plugin.hadithSources) {
 			sourceSelect.createEl("option", { value: source.id, text: sourceLabel(source.id) });
 		}
-		if (!this.plugin.hadithSources.some((source) => source.id === this.sourceId)) {
-			this.sourceId = this.plugin.hadithSources[0]?.id ?? "";
+		if (this.sourceId && !this.plugin.hadithSources.some((source) => source.id === this.sourceId)) {
+			this.sourceId = "";
 		}
 		sourceSelect.value = this.sourceId;
 
@@ -65,7 +70,6 @@ export class HadithLibraryZone {
 		const sourceOptions = box.createDiv({ cls: "falah-hadith-source-options" });
 		const listEl = box.createDiv({ cls: "falah-hadith-list" });
 		const status = box.createDiv({ cls: "falah-library-status", attr: { "aria-live": "polite" } });
-		const installedWrap = box.createDiv({ cls: "falah-hadith-installed" });
 
 		const selectedSource = (): HadithSource | undefined =>
 			this.plugin.hadithSources.find((source) => source.id === this.sourceId);
@@ -87,34 +91,24 @@ export class HadithLibraryZone {
 				});
 		};
 
-		const renderInstalled = async () => {
-			installedWrap.empty();
-			createSettingsSubheading(installedWrap, t().setHeadingInstalledHadithCollections);
+		const renderCatalog = async () => {
 			const descriptors = await this.plugin.hadith.listInstalled();
+			refresh.disabled = this.loading;
+			listEl.empty();
 			overview.empty();
 			overview.createSpan({ text: t().libraryHadithInstalledCount(descriptors.length), cls: "falah-library-count" });
-			if (!descriptors.length) {
-				installedWrap.createEl("p", { text: t().libraryNothingInstalled, cls: "falah-muted" });
-				return;
-			}
-			for (const descriptor of descriptors) this.renderInstalledRow(installedWrap, descriptor);
-		};
-
-		const renderCatalog = async () => {
-			listEl.empty();
 			if (this.loading) {
 				const loading = listEl.createDiv({ cls: "falah-library-state is-loading", attr: { role: "status" } });
 				loading.createSpan({ cls: "falah-library-spinner" });
 				loading.createSpan({ text: t().libraryLoadingCatalog });
-				return;
 			}
 			if (this.stale) {
 				const warning = listEl.createDiv({ cls: "falah-library-state is-warning", attr: { role: "status" } });
 				warning.setText(this.catalog.length ? t().libraryCachedCatalogOffline : t().libraryCatalogError);
 			}
 			const query = this.search.trim().toLocaleLowerCase();
-			const entries = this.catalog.filter((entry) => !query ||
-				entry.name.toLocaleLowerCase().includes(query) || entry.collection.toLocaleLowerCase().includes(query));
+			const entries = mergeHadithCollections(this.catalog, descriptors).filter((entry) => (!this.sourceId || entry.source === this.sourceId) && (!query ||
+				entry.name.toLocaleLowerCase().includes(query) || entry.collection.toLocaleLowerCase().includes(query)));
 			overview.querySelector(".falah-hadith-catalog-count")?.remove();
 			overview.createSpan({
 				text: t().libraryHadithCatalogCount(entries.length),
@@ -124,34 +118,34 @@ export class HadithLibraryZone {
 				listEl.createEl("p", { text: t().libraryHadithNoMatch, cls: "falah-muted" });
 				return;
 			}
-			const installed = new Set((await this.plugin.hadith.listInstalled()).map((descriptor) => descriptor.id));
+			const installed = new Set(descriptors.map((descriptor) => descriptor.id));
 			for (const entry of entries) this.renderCatalogRow(listEl, entry, installed, status);
 		};
 
 		const loadCatalog = async (force = false) => {
-			const source = selectedSource();
-			if (!source) return;
+			const epoch = ++this.catalogEpoch;
+			const sources = this.plugin.hadithSources.filter((source) => this.sourceId ? source.id === this.sourceId : !source.needsApiKey || Boolean(this.plugin.settings.hadithSunnahApiKey));
 			this.loading = true;
 			this.fetched = true;
 			refresh.disabled = true;
 			await renderCatalog();
 			try {
-				const result = await this.plugin.hadithCatalog.get(
-					source.id,
-					() => source.listCatalog(this.plugin.fetchJson),
-					{ force },
-				);
-				this.catalog = result.resources;
-				this.stale = result.stale;
+				const results = await Promise.allSettled(sources.map((source) => this.plugin.hadithCatalog.get(source.id, () => source.listCatalog(this.plugin.fetchJson), { force })));
+				if (epoch !== this.catalogEpoch) return;
+				this.catalog = results.flatMap((result) => result.status === "fulfilled" ? result.value.resources : []);
+				this.stale = results.some((result) => result.status === "rejected" || result.value.stale);
 			} catch (error) {
+				if (epoch !== this.catalogEpoch) return;
 				this.catalog = [];
 				this.stale = false;
 				status.setAttr("role", "alert");
 				status.setText(errMsg(error));
 			} finally {
+				if (epoch === this.catalogEpoch) {
 				this.loading = false;
 				refresh.disabled = false;
-				await renderCatalog();
+				await this.redrawCatalog?.();
+				}
 			}
 		};
 
@@ -171,21 +165,9 @@ export class HadithLibraryZone {
 		refresh.onclick = () => void loadCatalog(true);
 
 		renderSourceOptions();
-		void renderInstalled();
+		this.redrawCatalog = renderCatalog;
 		if (this.fetched) void renderCatalog();
 		else void loadCatalog();
-	}
-
-	private renderInstalledRow(containerEl: HTMLElement, descriptor: HadithCollectionDescriptor): void {
-		const setting = new Setting(containerEl)
-			.setName(descriptor.name)
-			.setDesc(t().libraryInstalledHadithSummary(descriptor.name, descriptor.count ?? 0, sourceLabel(descriptor.source)));
-		setting.nameEl.setText(descriptor.name);
-		setting.addButton((button) => button
-			.setButtonText(t().libraryRemoveButton)
-			.setWarning()
-			.setDisabled(this.busy)
-			.onClick(() => void this.removeCollection(descriptor)));
 	}
 
 	private renderCatalogRow(
@@ -195,9 +177,12 @@ export class HadithLibraryZone {
 		status: HTMLElement,
 	): void {
 		const setting = new Setting(containerEl).setName(entry.name).setDesc(sourceLabel(entry.source));
-		let language = entry.languages[0] ?? "ara";
+		setting.settingEl.addClass("falah-hadith-collection-row");
+		let language = entry.languages.find((value) => installed.has(resourceId(entry, value))) ?? entry.languages[0] ?? "ara";
 		setting.addDropdown((dropdown) => {
-			for (const value of entry.languages) dropdown.addOption(value, value.toLocaleUpperCase());
+			dropdown.selectEl.addClass("falah-hadith-language");
+			dropdown.selectEl.setAttr("aria-label", `${t().libraryResourceLanguageLabel}: ${entry.name}`);
+			for (const value of entry.languages) dropdown.addOption(value, languageDisplayName(value));
 			dropdown.setValue(language).onChange((value) => {
 				language = value;
 				syncButton();
@@ -208,7 +193,7 @@ export class HadithLibraryZone {
 			if (!actionButton) return;
 			const isInstalled = installed.has(resourceId(entry, language));
 			actionButton.setText(isInstalled ? t().libraryRemoveButton : t().libraryInstallButton);
-			actionButton.toggleClass("mod-warning", isInstalled);
+			setting.setDesc([sourceLabel(entry.source), isInstalled ? t().libraryInstalledTooltip : ""].filter(Boolean).join(" · "));
 		};
 		setting.addButton((button) => {
 			actionButton = button.buttonEl;
